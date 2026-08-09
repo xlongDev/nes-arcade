@@ -1,4 +1,4 @@
-import { memo, useCallback } from 'react'
+import { memo, useCallback, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import type { Game } from '@/types/game'
 import { GameCover } from './GameCover'
@@ -28,13 +28,19 @@ export const GameCard = memo(function GameCard({ game, index = 0, eager = false 
   const override = useLibrary((s) => s.coverOverrides[game.id])
   const toggleFavorite = useLibrary((s) => s.toggleFavorite)
 
+  const [pop, setPop] = useState(false)
   const onFav = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault()
       e.stopPropagation()
+      // 仅「收藏」瞬间弹一下；取消收藏不弹，避免视觉噪音
+      if (!favorite) {
+        setPop(true)
+        window.setTimeout(() => setPop(false), 360)
+      }
       toggleFavorite(game.id)
     },
-    [game.id, toggleFavorite],
+    [game.id, toggleFavorite, favorite],
   )
 
   return (
@@ -130,7 +136,7 @@ export const GameCard = memo(function GameCard({ game, index = 0, eager = false 
             'sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100',
         )}
       >
-        <IconHeart size={15} filled={favorite} />
+        <IconHeart size={15} filled={favorite} className={pop ? 'heart-pop' : undefined} />
       </button>
     </article>
   )

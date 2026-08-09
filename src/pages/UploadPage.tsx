@@ -280,8 +280,8 @@ export function UploadPage() {
 
       {/* 已上传列表 */}
       <section className="mt-9">
-        <h2 className="mb-3 flex items-center gap-2 px-1 text-[13px] font-semibold uppercase tracking-wide text-[var(--ink-3)]">
-          <IconGamepad size={15} /> 我的卡带（{customGames.length}）
+        <h2 className="mb-3 flex items-center gap-2 px-1 text-[12.5px] font-semibold text-[var(--ink-4)]">
+          <IconGamepad size={15} className="text-[var(--ink-3)]" /> 我的卡带（{customGames.length}）
         </h2>
 
         {customGames.length === 0 ? (
@@ -317,7 +317,7 @@ export function UploadPage() {
                   </p>
                 </div>
                 <Link to="/play/$gameId" params={{ gameId: g.id }} aria-label={`游玩 ${g.title}`}>
-                  <GlassButton variant="primary" size="sm">
+                  <GlassButton variant="glass" size="sm">
                     <IconPlay size={14} /> 游玩
                   </GlassButton>
                 </Link>
