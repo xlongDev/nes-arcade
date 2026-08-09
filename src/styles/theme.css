@@ -89,6 +89,9 @@
 
   --sheen: rgba(255, 255, 255, 0.16);
 
+  /* 焦点环外圈描边：暗主题用黑，把紫环从玻璃高光里"抠"出来 */
+  --focus-halo: rgba(0, 0, 0, 0.6);
+
   --aurora-1: #4a4ce8;
   --aurora-2: #0f7f8f;
   --aurora-3: #8a2f6b;
@@ -139,6 +142,9 @@
   --drop-sm: 0 8px 24px -16px rgba(23, 30, 60, 0.3);
 
   --sheen: rgba(255, 255, 255, 0.9);
+
+  /* 亮主题反过来：白描边，避免紫环压在彩色封面上糊掉 */
+  --focus-halo: rgba(255, 255, 255, 0.92);
 
   --aurora-1: #8fa2ff;
   --aurora-2: #7ce0d4;
@@ -201,14 +207,54 @@ body {
   background-clip: content-box;
 }
 
-/* 焦点环 —— 键盘导航必须看得见，这是无障碍底线 */
+/* ------------------------------------------------------------
+   焦点环 —— 键盘导航必须看得见，这是无障碍底线（WCAG 2.4.7 / 2.4.11）
+
+   两个坑：
+   1. 不要在这里写 border-radius。outline 本来就跟随元素自身圆角，
+      硬写会把 rounded-full 的按钮在聚焦瞬间压成方块。
+   2. 单色环在玻璃背景上会"消失"（brand 紫撞上极光紫）。
+      所以 outline 外面再补一圈深色 box-shadow 描边，
+      保证在任何底色上都有 3:1 以上的对比度。
+   ------------------------------------------------------------ */
 :focus-visible {
   outline: 2px solid var(--color-brand);
-  outline-offset: 3px;
-  border-radius: 6px;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--focus-halo);
 }
 :focus:not(:focus-visible) {
   outline: none;
+}
+
+/* 父级 overflow:hidden 会把 outline-offset 的外环裁掉（卡片网格里很常见）。
+   这类元素改用内缩焦点环。 */
+.focus-ring-inset:focus-visible {
+  outline-offset: -3px;
+  box-shadow: inset 0 0 0 4px var(--focus-halo);
+}
+
+/* ------------------------------------------------------------
+   跳至主内容 —— 键盘用户不必每次 Tab 穿过整条顶栏（WCAG 2.4.1）
+   平时藏起来，只有被聚焦时才滑出
+   ------------------------------------------------------------ */
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 50%;
+  z-index: 100;
+  padding: 0.6rem 1.1rem;
+  border-radius: var(--radius-glass-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-1);
+  background: var(--bg-deep);
+  border: 1px solid var(--line-2);
+  box-shadow: var(--drop-md);
+  transform: translate(-50%, -180%);
+  transition: transform 0.24s var(--ease-spring);
+}
+.skip-link:focus-visible {
+  transform: translate(-50%, 0);
 }
 
 button,

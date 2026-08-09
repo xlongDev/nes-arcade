@@ -213,6 +213,118 @@
 }
 
 /* ------------------------------------------------------------
+   对话框入场
+   桌面：中心轻微上浮 + 缩放；移动端：从底部抽屉式滑入。
+   共用一个类，靠媒体查询切关键帧，组件里就不用写条件 class 了。
+   ------------------------------------------------------------ */
+@keyframes dialog-scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes dialog-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(26px) scale(0.965);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes dialog-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+.dialog-scrim {
+  animation: dialog-scrim-in 0.2s var(--ease-glass) both;
+}
+.dialog-panel {
+  animation: dialog-sheet-in 0.34s var(--ease-glass) backwards;
+}
+@media (min-width: 640px) {
+  .dialog-panel {
+    animation: dialog-panel-in 0.34s var(--ease-glass) backwards;
+  }
+}
+
+/* ------------------------------------------------------------
+   交错入场
+   给列表/网格首屏用。--i 由内联样式注入；封顶 11 是为了
+   让长列表末尾不用干等，同时首屏的节奏感还在。
+   ------------------------------------------------------------ */
+.stagger-in {
+  animation: float-in 0.5s var(--ease-glass) both;
+  animation-delay: calc(min(var(--i, 0), 11) * 34ms);
+}
+
+/* ------------------------------------------------------------
+   收藏心跳
+   选中瞬间轻轻弹一下，克制不抢戏。0.34s 的弹簧曲线带一点过冲，
+   但幅度很小（0.82→1.12→1），配合 reduced-motion 全局降级。
+   ------------------------------------------------------------ */
+@keyframes heart-pop {
+  0% {
+    transform: scale(0.82);
+  }
+  55% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.heart-pop {
+  animation: heart-pop 0.34s var(--ease-spring) both;
+}
+
+/* ------------------------------------------------------------
+   信号干扰
+   404 页专用。老卡带接触不良时那种 RGB 色偏 + 撕裂，
+   FC 玩家一眼就懂。整个周期里 92% 的时间是静止的，
+   只在结尾抽两下 —— 常驻抖动会让人烦躁。
+   ------------------------------------------------------------ */
+@keyframes glitch {
+  0%,
+  90%,
+  100% {
+    text-shadow: none;
+    transform: none;
+  }
+  91% {
+    text-shadow: -3px 0 var(--color-rose), 3px 0 var(--color-brand);
+    transform: translateX(2px) skewX(-1.5deg);
+  }
+  93% {
+    text-shadow: 3px 0 var(--color-mint), -3px 0 var(--color-rose);
+    transform: translateX(-2px) skewX(1.5deg);
+  }
+  95% {
+    text-shadow: -2px 0 var(--color-brand), 2px 0 var(--color-amber);
+    transform: translateX(1px);
+  }
+  97% {
+    text-shadow: none;
+    transform: translateX(-1px);
+  }
+}
+.glitch {
+  animation: glitch 5.5s steps(1, end) infinite;
+}
+/* 点一下"吹一吹"，立刻抽一次风 —— 加速播放同一条时间线 */
+.glitch-burst {
+  animation: glitch 0.55s steps(1, end) 1;
+}
+
+/* ------------------------------------------------------------
    游戏画面
    NES 原生 256×240。必须用 pixelated，否则双线性插值会把像素糊成一团。
    ------------------------------------------------------------ */
