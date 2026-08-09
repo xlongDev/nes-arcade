@@ -19,6 +19,7 @@ import { usePrefs, type ThemeMode, type VideoFilter } from '@/stores/prefs'
 import { useLibrary } from '@/stores/library'
 import { clearSaves, clearCustomRoms, estimateUsage } from '@/lib/storage'
 import { toast } from '@/components/ui/Toast'
+import { confirmDialog } from '@/components/ui/ConfirmDialog'
 import { formatBytes } from '@/lib/format'
 import { switchThemeWithTransition } from '@/lib/useThemeSync'
 import type { NesButton } from '@/types/game'
@@ -177,18 +178,35 @@ export function SettingsPage() {
   const setTheme = (v: ThemeMode) => switchThemeWithTransition(() => prefs.setThemeMode(v))
 
   const handleClearSaves = async () => {
-    if (!window.confirm('确定清除所有游戏存档？此操作不可恢复。')) return
+    const ok = await confirmDialog({
+      title: '清除所有游戏存档？',
+      description: '所有游戏的全部存档位都会被删除，且无法恢复。',
+      confirmText: '清除存档',
+      tone: 'danger',
+    })
+    if (!ok) return
     await clearSaves()
     toast.success('已清除所有存档')
   }
   const handleClearRoms = async () => {
-    if (!window.confirm('确定删除所有上传的本地 ROM？')) return
+    const ok = await confirmDialog({
+      title: `删除全部 ${customGames.length} 个本地 ROM？`,
+      description: '这些卡带只存在这台设备上，删除后需要重新上传。',
+      confirmText: '全部删除',
+      tone: 'danger',
+    })
+    if (!ok) return
     await clearCustomRoms()
     customGames.forEach((g) => removeCustomGame(g.id))
     toast.success('已清除上传的 ROM')
   }
-  const handleResetAll = () => {
-    if (!window.confirm('确定恢复所有默认设置（键位、主题、偏好）？')) return
+  const handleResetAll = async () => {
+    const ok = await confirmDialog({
+      title: '恢复默认设置？',
+      description: '键位、主题、音量等偏好都会回到初始状态。存档和上传的 ROM 不受影响。',
+      confirmText: '恢复默认',
+    })
+    if (!ok) return
     prefs.resetKeymap()
     prefs.patch({ themeMode: 'system', videoFilter: 'none', touchPad: 'auto', touchHaptics: true, autoCover: true, integerScale: false, reduceGlass: false, volume: 0.7, muted: false })
     toast.success('已恢复默认设置')
@@ -302,21 +320,56 @@ export function SettingsPage() {
 
       <Section title="本地数据" icon={<IconSave size={15} />}>
         <div className="px-4 py-3">
-          <p className="text-[14px] text-[var(--ink-1)]">
-            已占用空间
-            <span className="ml-2 tnum text-[var(--ink-3)]">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-[14px] text-[var(--ink-1)]">已占用空间</span>
+            <span className="tnum text-[13px] text-[var(--ink-3)]">
               {usage ? `${formatBytes(usage.usage)} / ${formatBytes(usage.quota)}` : '计算中…'}
             </span>
-          </p>
+          </div>
+          {/* 占用通常只有配额的千分之几，条形几乎看不见。
+              给个 0.8% 的视觉下限，让"有数据"这件事本身可读。 */}
+          <div
+            className="mt-2 h-1.5 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--ink-1)_10%,transparent)]"
+            role="progressbar"
+            aria-label="本地存储占用"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={usage ? Math.round((usage.usage / usage.quota) * 100) : 0}
+          >
+            <div
+              className="h-full rounded-full bg-[var(--color-brand)] transition-[width] duration-700 [transition-timing-function:var(--ease-glass)]"
+              style={{
+                width: usage
+                  ? `${Math.min(100, Math.max(0.8, (usage.usage / usage.quota) * 100))}%`
+                  : '0%',
+              }}
+            />
+          </div>
         </div>
         <div className="flex flex-col gap-1 px-4 py-3">
-          <GlassButton variant="glass" onClick={handleClearSaves} className="justify-start">
+          <GlassButton
+            variant="glass"
+            onClick={() => void handleClearSaves()}
+            className="justify-start hover:text-[var(--color-rose)]"
+          >
             <IconTrash size={16} /> 清除所有存档
           </GlassButton>
-          <GlassButton variant="glass" onClick={handleClearRoms} className="justify-start">
+          <GlassButton
+            variant="glass"
+            onClick={() => void handleClearRoms()}
+            disabled={customGames.length === 0}
+            className="justify-start hover:text-[var(--color-rose)]"
+          >
             <IconTrash size={16} /> 删除上传的 ROM
+            {customGames.length > 0 && (
+              <span className="tnum text-[var(--ink-4)]">（{customGames.length}）</span>
+            )}
           </GlassButton>
-          <GlassButton variant="glass" onClick={handleResetAll} className="justify-start">
+          <GlassButton
+            variant="glass"
+            onClick={() => void handleResetAll()}
+            className="justify-start"
+          >
             <IconReset size={16} /> 恢复默认设置
           </GlassButton>
         </div>
