@@ -123,9 +123,16 @@ export function UploadPage() {
         toast.success('已加入本地游戏库')
         void navigate({ to: '/play/$gameId', params: { gameId: id } })
       } catch (err) {
-        // 真实错误打到控制台，方便排障；用户侧仍给友好的通用提示
+        // 真实错误打到控制台，方便排障；同时把可识别的失败原因翻成中文提示
         console.error('[upload] 导入 ROM 失败:', err)
-        toast.error('读取文件失败，请重试')
+        const msg = err instanceof Error ? err.message : String(err)
+        if (/not found|store|indexeddb|idbdatabase|transaction|quota/i.test(msg)) {
+          toast.error('本地存储不可用，无法保存 ROM（请关闭无痕模式 / 允许本站存储后重试）')
+        } else if (/not supported|undefined|not a function/i.test(msg)) {
+          toast.error('当前环境不支持所需 API，建议用 http://localhost 打开')
+        } else {
+          toast.error('读取文件失败，请重试')
+        }
       } finally {
         setPhase(null)
       }

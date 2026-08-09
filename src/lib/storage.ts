@@ -8,9 +8,13 @@
 import { get, set, del, keys, createStore } from 'idb-keyval'
 import type { SaveSlot } from '@/types/game'
 
-const saveStore = createStore('nes-arcade', 'saves')
-const romStore = createStore('nes-arcade', 'roms')
-const metaStore = createStore('nes-arcade', 'meta')
+// 注意：idb-keyval 的 createStore 用 `indexedDB.open(dbName)` 且在 onupgradeneeded
+// 里只建一个 object store。若多个 createStore 共用同一个 dbName，只有第一个能建出自己的
+// store，其余的 store 根本不会被创建，调用时 `db.transaction('xxx')` 直接抛 NotFoundError。
+// 所以每个 store 必须用独立的 dbName（这个坑曾导致「上传所有 ROM 都报 读取文件失败」）。
+const saveStore = createStore('nes-arcade-saves', 'saves')
+const romStore = createStore('nes-arcade-roms', 'roms')
+const metaStore = createStore('nes-arcade-meta', 'meta')
 
 const SLOT_KEY = (gameId: string, slot: number) => `${gameId}::${slot}`
 const SLOT_META_KEY = (gameId: string, slot: number) => `slotmeta::${gameId}::${slot}`
