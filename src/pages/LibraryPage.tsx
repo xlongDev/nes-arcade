@@ -4,6 +4,7 @@ import { Segmented } from '@/components/ui/Segmented'
 import { CategoryFilter as CategoryFilterChips } from '@/components/ui/CategoryFilter'
 import { GlassButton } from '@/components/ui/GlassButton'
 import { GameCard } from '@/features/library/GameCard'
+import { GlobalSearch } from '@/components/GlobalSearch'
 import { useGameSearch } from '@/features/library/useGameSearch'
 import { useLibrary } from '@/stores/library'
 import { useGridPointerGlow } from '@/lib/pointer'
@@ -188,6 +189,7 @@ export function LibraryPage() {
         )}
       >
         <div className="flex flex-wrap items-center gap-3">
+          <GlobalSearch size="md" className="w-44 shrink-0 sm:w-52" />
           <div className="min-w-0">
             <CategoryFilterChips
               label="游戏分类"
