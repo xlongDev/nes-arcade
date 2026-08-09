@@ -1,8 +1,48 @@
-# NES Arcade · 红白机游戏厅
+<div align="center">
 
-一个液态玻璃（Liquid Glass）质感的 **FC / NES 红白机游戏在线合集**。浏览器内直接加载 ROM 即玩，支持键盘 / 手柄 / 移动端虚拟手柄、存档读档、收藏与最近游玩，全部数据本地持久化，无需联网即可畅玩。
+# 🎮 NES Arcade · 红白机游戏厅
 
-> 纯前端项目，模拟器内核（fceumm WASM）已本地化打包，**运行时不依赖任何 CDN**。
+**液态玻璃质感的 FC / NES 红白机游戏在线合集 —— 打开网页，即点即玩**
+
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](./LICENSE)
+[![Node](https://img.shields.io/badge/Node-%E2%89%A5%2020-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
+[![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](https://vite.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![PWA](https://img.shields.io/badge/PWA-ready-5A0FC8?logo=pwa&logoColor=white)](#-部署)
+[![No CDN](https://img.shields.io/badge/runtime-no%20CDN-success)](#-特性一览)
+
+浏览器内直接加载 ROM 即玩 · 键盘 / 手柄 / 移动端虚拟手柄 · 存档读档 · 收藏与最近游玩 · 全部数据本地持久化
+
+</div>
+
+---
+
+> [!IMPORTANT]
+> ### 📼 本仓库**不包含任何游戏 ROM**
+>
+> 出于版权考虑，`public/roms/` 已被 `.gitignore` 排除。**克隆后游戏库是空的，需要你自己准备 ROM。**
+>
+> **三种方式任选其一：**
+>
+> | 方式 | 操作 | 适合 |
+> |---|---|---|
+> | **① 批量导入**（推荐） | 把 `.nes` 文件丢进仓库**同级**的 `../roms/` 目录，然后跑 `npm run prepare:data` | 有一整个收藏夹 |
+> | **② 网页上传** | 直接 `npm run dev`，打开**上传页**拖入 `.nes` 文件，存进浏览器 IndexedDB | 只想试玩一两个 |
+> | **③ 自定义路径** | 设置环境变量 `ROMS_SRC=/你的/路径 npm run prepare:data` | ROM 在别处 |
+>
+> 目录结构应为：
+> ```
+> 你的工作目录/
+> ├── roms/            ← 把 .nes 文件放这里（仓库外，不会被提交）
+> │   ├── 超级玛莉.nes
+> │   └── 魂斗罗.nes
+> └── nes-arcade/      ← 本仓库
+> ```
+>
+> 想合法获取 ROM？可以用 [飞天鼠 / Homebrew 自制游戏](https://www.nesdev.org/wiki/Projects)、
+> [NESDev 社区作品](https://forums.nesdev.org/viewforum.php?f=22)，或你**自己持有卡带**的备份。
+> 详见 [📦 数据准备](#-数据准备)。
 
 ---
 

@@ -3,7 +3,28 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "液态玻璃质感的 FC（NES）红白机游戏在线合集",
+  "description": "液态玻璃质感的 FC（NES）红白机游戏在线合集，浏览器内即点即玩",
+  "license": "GPL-3.0-or-later",
+  "author": "xlongDev",
+  "homepage": "https://github.com/xlongDev/nes-arcade#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xlongDev/nes-arcade.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xlongDev/nes-arcade/issues"
+  },
+  "keywords": [
+    "nes",
+    "famicom",
+    "emulator",
+    "webassembly",
+    "libretro",
+    "fceumm",
+    "react",
+    "liquid-glass",
+    "pwa"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "vite build",
