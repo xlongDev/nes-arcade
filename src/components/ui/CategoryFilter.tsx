@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from 'react'
+import { useRef, useEffect, useState, useCallback, type ReactNode } from 'react'
 import { cx } from '@/lib/cx'
 
 export interface CategoryFilterOption {
@@ -20,10 +20,10 @@ interface CategoryFilterProps {
 }
 
 /**
- * 分类筛选：换行式玻璃胶囊（chip）。
- * 相比单行 Segmented，所有分类在任何宽度下都一眼可见、无需横向滚动。
- * 选中态用品牌色填充胶囊 + 描边替代滑动玻璃指示器。
- * 无障碍：role=tablist + 方向键导航（与 Segmented 行为一致）。
+ * 分类筛选：与 Segmented 一致的液态玻璃胶囊。
+ * 外层是整块 glass-faux 容器，选中态由一块会滑动的玻璃指示器承载，
+ * 切换时产生"一整块玻璃流过去"的连续感；按压带弹性回弹。
+ * 无障碍：role=tablist + 方向键导航（WAI-ARIA Tabs 模式）。
  */
 export function CategoryFilter({
   value,
@@ -33,6 +33,24 @@ export function CategoryFilter({
   className,
 }: CategoryFilterProps) {
   const listRef = useRef<HTMLDivElement>(null)
+  const [indicator, setIndicator] = useState<{ x: number; w: number } | null>(null)
+
+  const sync = useCallback(() => {
+    const list = listRef.current
+    if (!list) return
+    const active = list.querySelector<HTMLElement>('[data-active="true"]')
+    if (!active) return setIndicator(null)
+    setIndicator({ x: active.offsetLeft, w: active.offsetWidth })
+  }, [])
+
+  useEffect(() => {
+    sync()
+    const list = listRef.current
+    if (!list) return
+    const ro = new ResizeObserver(sync)
+    ro.observe(list)
+    return () => ro.disconnect()
+  }, [sync, value, options])
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     const idx = options.findIndex((o) => o.value === value)
@@ -55,8 +73,27 @@ export function CategoryFilter({
       role="tablist"
       aria-label={label}
       onKeyDown={onKeyDown}
-      className={cx('flex flex-wrap items-center gap-2', className)}
+      className={cx(
+        'glass-faux glass-refract relative inline-flex items-center gap-1 overflow-x-auto p-1',
+        'rounded-[var(--radius-glass-md)]',
+        'scrollbar-hidden',
+        className,
+      )}
     >
+      {indicator && (
+        <span
+          aria-hidden="true"
+          className={cx(
+            'pointer-events-none absolute top-1 bottom-1 z-0',
+            'rounded-[calc(var(--radius-glass-md)-4px)]',
+            'bg-[var(--glass-frame)] border border-[var(--line-2)]',
+            'shadow-[var(--bevel)] backdrop-blur-xl',
+            'transition-[transform,width] duration-[420ms] [transition-timing-function:var(--ease-spring)]',
+          )}
+          style={{ transform: `translateX(${indicator.x - 4}px)`, width: indicator.w }}
+        />
+      )}
+
       {options.map((o) => {
         const active = o.value === value
         return (
@@ -66,16 +103,15 @@ export function CategoryFilter({
             type="button"
             aria-selected={active}
             tabIndex={active ? 0 : -1}
+            data-active={active}
             title={o.title}
             onClick={() => onChange(o.value)}
             className={cx(
-              'inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5',
-              'whitespace-nowrap font-medium leading-none',
-              'transition-[color,background,box-shadow,transform] duration-300',
-              '[transition-timing-function:var(--ease-glass)] active:scale-[0.96]',
-              active
-                ? 'border border-[var(--line-1)] bg-[color-mix(in_srgb,var(--color-brand)_26%,transparent)] text-[var(--ink-1)] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-brand)_55%,transparent)]'
-                : 'border border-[var(--line-1)] bg-[var(--chip-bg)] text-[var(--ink-3)] hover:bg-[var(--chip-bg-hover)] hover:text-[var(--ink-2)]',
+              'relative z-10 inline-flex shrink-0 items-center gap-1.5 rounded-[var(--radius-glass-sm)]',
+              'h-9 px-3 text-[13px] font-medium whitespace-nowrap',
+              'transition-[color,transform] duration-300 [transition-timing-function:var(--ease-glass)]',
+              'active:scale-[0.96] active:[transition-timing-function:var(--ease-spring)]',
+              active ? 'text-[var(--ink-1)]' : 'text-[var(--ink-3)] hover:text-[var(--ink-2)]',
             )}
           >
             {o.icon && (
@@ -90,10 +126,10 @@ export function CategoryFilter({
             {o.count !== undefined && (
               <span
                 className={cx(
-                  'tnum rounded-full px-1.5 py-px text-[10px] leading-[1.5]',
+                  'tnum rounded-full px-1.5 py-px text-[10px] leading-[1.5] transition-colors',
                   active
                     ? 'bg-[color-mix(in_srgb,var(--color-brand)_34%,transparent)] text-[var(--ink-1)]'
-                    : 'bg-[color-mix(in_srgb,var(--ink-1)_10%,transparent)] text-[var(--ink-4)]',
+                    : 'bg-[color-mix(in_srgb,var(--ink-1)_9%,transparent)] text-[var(--ink-4)]',
                 )}
               >
                 {o.count}

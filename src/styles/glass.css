@@ -29,6 +29,15 @@
   box-shadow: var(--bevel), var(--drop-lg);
 }
 
+/* 隐藏滚动条但保留可滚动性（用于横向滚动的胶囊控件） */
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
 /* 伪玻璃：视觉上几乎一致，但不触发背景采样 */
 .glass-faux {
   position: relative;
