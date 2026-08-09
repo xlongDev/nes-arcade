@@ -1,4 +1,4 @@
-import { useRef, type HTMLAttributes, type ReactNode } from 'react'
+import { useCallback, useRef, type HTMLAttributes, type ReactNode, type Ref } from 'react'
 import { cx } from '@/lib/cx'
 import { usePointerGlow } from '@/lib/pointer'
 
@@ -28,6 +28,11 @@ export interface GlassPanelProps extends HTMLAttributes<HTMLDivElement> {
   /** 指针跟随高光。列表项请用网格级委托，不要逐个开。 */
   sheen?: boolean
   refract?: boolean
+  /**
+   * 外部 ref。内部本来就要拿 DOM 给指针高光用，所以这里做一次合并，
+   * 不能直接透传 —— 否则 spread 会把内部 ref 覆盖掉，高光就失灵了。
+   */
+  ref?: Ref<HTMLDivElement>
   children?: ReactNode
 }
 
@@ -38,14 +43,24 @@ export function GlassPanel({
   refract = true,
   className,
   children,
+  ref: forwardedRef,
   ...rest
 }: GlassPanelProps) {
   const ref = useRef<HTMLDivElement>(null)
   usePointerGlow(sheen ? ref : { current: null })
 
+  const setRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      ref.current = node
+      if (typeof forwardedRef === 'function') forwardedRef(node)
+      else if (forwardedRef) forwardedRef.current = node
+    },
+    [forwardedRef],
+  )
+
   return (
     <div
-      ref={ref}
+      ref={setRef}
       className={cx(
         TONE[tone],
         RADIUS[radius],

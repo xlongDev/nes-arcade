@@ -3,6 +3,7 @@ import { Aurora } from './Aurora'
 import { TopBar } from './TopBar'
 import { useThemeSync } from '@/lib/useThemeSync'
 import { ToastHost } from '@/components/ui/Toast'
+import { ConfirmHost } from '@/components/ui/ConfirmDialog'
 
 export function RootLayout() {
   useThemeSync()
@@ -12,13 +13,18 @@ export function RootLayout() {
 
   return (
     <>
+      {/* 键盘用户不必每次 Tab 穿过整条顶栏才能摸到内容（WCAG 2.4.1） */}
+      <a href="#main" className="skip-link">
+        跳至主内容
+      </a>
       <Aurora paused={inGame} />
       {/* 游戏页自带精简顶栏，避免两条栏叠在一起抢空间 */}
       {!inGame && <TopBar />}
-      <main className="relative z-2">
+      <main id="main" tabIndex={-1} className="relative z-2 outline-none">
         <Outlet />
       </main>
       <ToastHost />
+      <ConfirmHost />
     </>
   )
 }
