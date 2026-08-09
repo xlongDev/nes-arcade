@@ -55,6 +55,29 @@ export async function listSaves(gameId: string): Promise<SaveSlot[]> {
 
 /* ---------------- 自定义 ROM ---------------- */
 
+/**
+ * 生成自定义 ROM 的唯一 id。
+ *
+ * `crypto.randomUUID()` 只在安全上下文（https / localhost）下可用；
+ * 在局域网 IP（如 http://192.168.x.x:5173）或 file:// 下它是 undefined，
+ * 直接调用会抛 TypeError —— 这正是「上传所有游戏都报 读取文件失败」的根因。
+ * 这里做降级：退而用 getRandomValues 拼一个 UUID v4，再不济用时间戳兜底，
+ * 保证任意环境都能拿到合法 id。
+ */
+export function genCustomRomId(): string {
+  const c = globalThis.crypto
+  if (c && typeof c.randomUUID === 'function') return `custom-${c.randomUUID()}`
+  if (c && typeof c.getRandomValues === 'function') {
+    const b = c.getRandomValues(new Uint8Array(16))
+    b[6] = (b[6]! & 0x0f) | 0x40 // version 4
+    b[8] = (b[8]! & 0x3f) | 0x80 // variant 10xx
+    const h = [...b].map((x) => x.toString(16).padStart(2, '0'))
+    const uuid = `${h.slice(0, 4).join('')}-${h.slice(4, 6).join('')}-${h.slice(6, 8).join('')}-${h.slice(8, 10).join('')}-${h.slice(10, 16).join('')}`
+    return `custom-${uuid}`
+  }
+  return `custom-${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
 export async function writeCustomRom(id: string, data: Uint8Array): Promise<void> {
   await set(id, new Uint8Array(data), romStore)
 }

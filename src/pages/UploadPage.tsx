@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useLibrary } from '@/stores/library'
-import { writeCustomRom, deleteCustomRom } from '@/lib/storage'
+import { writeCustomRom, deleteCustomRom, genCustomRomId } from '@/lib/storage'
 import { toast } from '@/components/ui/Toast'
 import { confirmDialog } from '@/components/ui/ConfirmDialog'
 import { GlassButton } from '@/components/ui/GlassButton'
@@ -110,7 +110,7 @@ export function UploadPage() {
         }
 
         setPhase('saving')
-        const id = `custom-${crypto.randomUUID()}`
+        const id = genCustomRomId()
         await writeCustomRom(id, buf)
         const meta: CustomGame = {
           id,
@@ -122,7 +122,9 @@ export function UploadPage() {
         addCustomGame(meta)
         toast.success('已加入本地游戏库')
         void navigate({ to: '/play/$gameId', params: { gameId: id } })
-      } catch {
+      } catch (err) {
+        // 真实错误打到控制台，方便排障；用户侧仍给友好的通用提示
+        console.error('[upload] 导入 ROM 失败:', err)
         toast.error('读取文件失败，请重试')
       } finally {
         setPhase(null)
