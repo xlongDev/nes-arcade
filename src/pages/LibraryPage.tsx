@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { Segmented } from '@/components/ui/Segmented'
 import { CategoryFilter as CategoryFilterChips } from '@/components/ui/CategoryFilter'
@@ -126,6 +126,24 @@ export function LibraryPage() {
   const setSearch = (patch: Partial<LibrarySearch>) =>
     void navigate({ to: '/', search: () => ({ ...search, ...patch }) })
 
+  // sticky 吸附态检测：滚动到工具栏吸顶时再加一层极淡的玻璃+底线，
+  // 避免常态下分类区底下多一层厚重面板；吸顶时又能和内容拉开层次。
+  const sentinelRef = useRef<HTMLDivElement>(null)
+  const [isStuck, setIsStuck] = useState(false)
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return
+        setIsStuck(!entry.isIntersecting)
+      },
+      { root: null, rootMargin: '-1px 0px 0px 0px', threshold: 0 },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
   const showRails = !search.q && search.cat === 'all' && !search.fav
 
   // 真正"空库"（没有任何内置 ROM 也没有上传 ROM）与"筛选后为零"要区别对待：
@@ -158,8 +176,17 @@ export function LibraryPage() {
         </div>
       </header>
 
+      {/* sticky 吸附 sentinel：位于工具栏正上方，用于判断工具栏是否已吸顶 */}
+      <div ref={sentinelRef} className="pointer-events-none h-0" aria-hidden="true" />
+
       {/* 工具栏：分类筛选 + 排序 + 收藏 */}
-      <div className="sticky top-[calc(env(safe-area-inset-top)_+_92px)] z-30 -mx-1 mb-7 flex flex-col gap-3 rounded-[var(--radius-glass-lg)] border-b border-[var(--line-1)] bg-[color-mix(in_srgb,var(--bg-base)_66%,transparent)] px-1 py-2 backdrop-blur-xl">
+      {/* 常态下无玻璃底板，pill 直接浮在页面背景上；吸顶时才出现极淡玻璃+底线。 */}
+      <div
+        className={cx(
+          'sticky top-[calc(env(safe-area-inset-top)_+_92px)] z-30 -mx-1 mb-7 flex flex-col gap-3 px-1 py-2 transition-[background,border,box-shadow,backdrop-filter] duration-300 [transition-timing-function:var(--ease-glass)]',
+          isStuck && 'border-b border-[var(--line-1)] bg-[color-mix(in_srgb,var(--bg-base)_72%,transparent)] backdrop-blur-xl',
+        )}
+      >
         <div className="flex flex-wrap items-center gap-3">
           <div className="min-w-0">
             <CategoryFilterChips
