@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { classifyByTitle } from '@/lib/romTitleClassifier'
 import type { CustomGame, RecentEntry } from '@/types/game'
 
 const MAX_RECENTS = 24
@@ -81,7 +82,22 @@ export const useLibrary = create<LibraryState>()(
     }),
     {
       name: 'nes-arcade:library',
-      version: 1,
+      version: 2,
+      migrate: (persistedState: unknown, version) => {
+        const state = persistedState as LibraryState
+        if (version === 1) {
+          // 第一版 customGames 可能缺 category 或被错误兜底成 action。
+          // 用文件名重新启发式分类一次（无需读 ROM 字节），汉化 ROM 也能归到合理类别。
+          return {
+            ...state,
+            customGames: state.customGames.map((g) => ({
+              ...g,
+              category: g.category && g.category !== 'action' ? g.category : classifyByTitle(g.title),
+            })),
+          }
+        }
+        return state
+      },
     },
   ),
 )
