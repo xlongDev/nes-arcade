@@ -6,6 +6,7 @@ import {
   lazyRouteComponent,
 } from '@tanstack/react-router'
 import { RootLayout } from '@/components/layout/RootLayout'
+import { PagePending } from '@/components/ui/PagePending'
 import { LibraryPage } from '@/pages/LibraryPage'
 import { NotFound } from '@/pages/NotFound'
 import type { CategoryFilter } from '@/types/game'
@@ -62,18 +63,21 @@ const playRoute = createRoute({
   path: '/play/$gameId',
   // 模拟器（含 3MB WASM 引导逻辑）只在进入游戏页时才加载
   component: lazyRouteComponent(() => import('@/pages/PlayPage'), 'PlayPage'),
+  pendingComponent: PagePending,
 })
 
 const uploadRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/upload',
   component: lazyRouteComponent(() => import('@/pages/UploadPage'), 'UploadPage'),
+  pendingComponent: PagePending,
 })
 
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/settings',
   component: lazyRouteComponent(() => import('@/pages/SettingsPage'), 'SettingsPage'),
+  pendingComponent: PagePending,
 })
 
 const routeTree = rootRoute.addChildren([indexRoute, playRoute, uploadRoute, settingsRoute])

@@ -1,4 +1,5 @@
 import { Outlet, useRouterState } from '@tanstack/react-router'
+import { motion } from 'motion/react'
 import { Aurora } from './Aurora'
 import { TopBar } from './TopBar'
 import { useThemeSync } from '@/lib/useThemeSync'
@@ -21,7 +22,18 @@ export function RootLayout() {
       {/* 游戏页自带精简顶栏，避免两条栏叠在一起抢空间 */}
       {!inGame && <TopBar />}
       <main id="main" tabIndex={-1} className="relative z-2 outline-none">
-        <Outlet />
+        {inGame ? (
+          <Outlet />
+        ) : (
+          <motion.div
+            key={pathname}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+          >
+            <Outlet />
+          </motion.div>
+        )}
       </main>
       <ToastHost />
       <ConfirmHost />
