@@ -12,7 +12,14 @@ const CAT_LABEL = new Map(CATEGORIES.map((c) => [c.id, c.label]))
 interface GameCardProps {
   game: Game
   index?: number
-  /** 首屏前若干张不做入场延迟，避免 LCP 被动画拖慢 */
+  /**
+   * 首屏卡片：图片立即解码，并按顺序做交错入场。
+   *
+   * 注意这里的语义之前是反的 —— 原先是"非首屏才播 float-in"，
+   * 可非首屏的卡片在 content-visibility 下压根没被看到过，
+   * 等用户滚下去时动画早就播完了，等于白播；而真正被看到的首屏
+   * 却是硬弹出。所以入场动画只给首屏，滚动区不浪费主线程。
+   */
   eager?: boolean
 }
 
@@ -31,22 +38,23 @@ export const GameCard = memo(function GameCard({ game, index = 0, eager = false 
   )
 
   return (
-    <Link
-      to="/play/$gameId"
-      params={{ gameId: game.id }}
-      viewTransition
-      data-glow
-      aria-label={`游玩 ${game.title}`}
-      className={cx(
-        'glass-faux glass-faux-hoverable glass-sheen glass-refract group',
-        'relative block overflow-hidden rounded-[var(--radius-glass-md)]',
-        'transition-[transform,box-shadow,border-color] duration-[420ms]',
-        '[transition-timing-function:var(--ease-glass)]',
-        'hover:-translate-y-1.5 hover:shadow-[var(--drop-lg)] active:scale-[0.985]',
-        !eager && 'float-in',
-      )}
-      style={!eager ? { animationDelay: `${Math.min(index, 14) * 26}ms` } : undefined}
-    >
+    <article className="group relative">
+      <Link
+        to="/play/$gameId"
+        params={{ gameId: game.id }}
+        viewTransition
+        data-glow
+        aria-label={`游玩 ${game.title}`}
+        className={cx(
+          'glass-faux glass-faux-hoverable glass-sheen glass-refract',
+          'relative block overflow-hidden rounded-[var(--radius-glass-md)]',
+          'transition-[transform,box-shadow,border-color] duration-[420ms]',
+          '[transition-timing-function:var(--ease-glass)]',
+          'hover:-translate-y-1.5 hover:shadow-[var(--drop-lg)] active:scale-[0.985]',
+          eager && 'stagger-in',
+        )}
+        style={eager ? ({ '--i': index } as React.CSSProperties) : undefined}
+      >
       {/* 封面：NES 卡带接近 1:1，这里用 4:3 更贴近游戏画面比例 */}
       <div className="relative aspect-4/3 overflow-hidden">
         <GameCover
@@ -84,25 +92,6 @@ export const GameCard = memo(function GameCard({ game, index = 0, eager = false 
           {game.players >= 2 && <Badge>{game.players}P</Badge>}
         </span>
 
-        <button
-          type="button"
-          onClick={onFav}
-          aria-label={favorite ? `取消收藏 ${game.title}` : `收藏 ${game.title}`}
-          aria-pressed={favorite}
-          className={cx(
-            'absolute top-2 right-2 z-10 grid size-8 place-items-center rounded-full',
-            'bg-black/28 text-white/80 backdrop-blur-md ring-1 ring-white/22',
-            'transition-[transform,color,background] duration-300 active:scale-90',
-            'hover:bg-black/44 hover:text-white',
-            favorite && 'text-[var(--color-rose)]',
-            // 未收藏时在移动端也要看得见（没有 hover），只在桌面端淡出
-            !favorite &&
-              'sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100',
-          )}
-        >
-          <IconHeart size={15} filled={favorite} />
-        </button>
-
         {/* 标题压在封面底部，节省纵向空间 */}
         <div className="absolute inset-x-0 bottom-0 p-3">
           <h3 className="truncate text-[13.5px] leading-snug font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,.7)]">
@@ -121,7 +110,29 @@ export const GameCard = memo(function GameCard({ game, index = 0, eager = false 
           </p>
         </div>
       </div>
-    </Link>
+      </Link>
+
+      {/* 收藏按钮与 Link 同级：避免 <a> 内嵌套 <button> 的非法 HTML，也理顺键盘 Tab 顺序
+          （先到卡片链接，再到收藏按钮）。z-20 确保浮在封面之上。 */}
+      <button
+        type="button"
+        onClick={onFav}
+        aria-label={favorite ? `取消收藏 ${game.title}` : `收藏 ${game.title}`}
+        aria-pressed={favorite}
+        className={cx(
+          'absolute top-2 right-2 z-20 grid size-8 place-items-center rounded-full',
+          'bg-black/28 text-white/80 backdrop-blur-md ring-1 ring-white/22',
+          'transition-[transform,color,background] duration-300 active:scale-90',
+          'hover:bg-black/44 hover:text-white',
+          favorite && 'text-[var(--color-rose)]',
+          // 未收藏时在移动端也要看得见（没有 hover），只在桌面端淡出
+          !favorite &&
+            'sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100',
+        )}
+      >
+        <IconHeart size={15} filled={favorite} />
+      </button>
+    </article>
   )
 })
 

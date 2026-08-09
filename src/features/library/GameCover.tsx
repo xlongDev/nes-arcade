@@ -61,6 +61,20 @@ export const GameCover = memo(function GameCover({
             className="absolute inset-0 size-full object-cover"
             style={{ imageRendering: override ? 'pixelated' : 'auto' }}
           />
+          {/*
+            玻璃色调叠层（选项 A）：真实截图（自动截图 / 手动上传）是实打实的游戏画面，
+            和旁边的程序化玻璃封面摆在一起会"跳戏"。这里叠两层让它与程序化封面处于同一套
+            玻璃语境里 —— 一层品牌色 soft-light 染色，一层斜向高光（和 .glass-faux 的表面处理一致），
+            既统一了质感，又不遮挡画面内容。
+          */}
+          <span
+            aria-hidden="true"
+            className="absolute inset-0 bg-[linear-gradient(152deg,color-mix(in_srgb,var(--color-brand)_20%,transparent),transparent_58%)] mix-blend-soft-light"
+          />
+          <span
+            aria-hidden="true"
+            className="absolute inset-0 bg-[linear-gradient(128deg,rgba(255,255,255,.16),transparent_42%,transparent_68%,rgba(0,0,0,.16))]"
+          />
         </>
       ) : (
         <>

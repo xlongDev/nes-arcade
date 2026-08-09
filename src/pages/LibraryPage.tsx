@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { Segmented } from '@/components/ui/Segmented'
+import { CategoryFilter as CategoryFilterChips } from '@/components/ui/CategoryFilter'
 import { GlassButton } from '@/components/ui/GlassButton'
 import { GameCard } from '@/features/library/GameCard'
 import { useGameSearch } from '@/features/library/useGameSearch'
@@ -59,12 +60,8 @@ export function LibraryPage() {
     () =>
       CATEGORIES.map((c) => ({
         value: c.id as CategoryFilter,
-        label: (
-          <span className="flex items-center gap-1.5">
-            <span aria-hidden className="text-[var(--ink-3)]">{c.icon}</span>
-            {c.label}
-          </span>
-        ),
+        label: c.label,
+        icon: c.icon,
         count: CATEGORY_COUNTS[c.id] ?? 0,
       })),
     [],
@@ -104,16 +101,31 @@ export function LibraryPage() {
       </header>
 
       {/* 工具栏：分类筛选 + 排序 + 收藏 */}
-      <div className="sticky top-[88px] z-30 -mx-1 mb-7 flex flex-col gap-3 rounded-[var(--radius-glass-lg)] px-1 py-2">
+      <div className="sticky top-[calc(env(safe-area-inset-top)_+_92px)] z-30 -mx-1 mb-7 flex flex-col gap-3 rounded-[var(--radius-glass-lg)] px-1 py-2">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <Segmented
+          <div className="min-w-0 flex-1">
+            <CategoryFilterChips
               label="游戏分类"
               value={search.cat}
               options={categoryOptions}
-              onChange={(v) => setSearch({ cat: v })}
+              onChange={(v) => setSearch({ cat: v as CategoryFilter })}
             />
           </div>
+
+          {/* 排序：大屏并入同一行右侧；移动端单独放第二行（见下方） */}
+          {!search.fav && (
+            <div className="hidden items-center gap-2 lg:flex">
+              <span className="text-[12px] text-[var(--ink-4)]">排序</span>
+              <Segmented
+                label="排序方式"
+                size="sm"
+                value={search.sort}
+                options={SORT_OPTIONS}
+                onChange={(v) => setSearch({ sort: v })}
+              />
+            </div>
+          )}
+
           <GlassButton
             variant={search.fav ? 'primary' : 'glass'}
             size="md"
@@ -128,7 +140,7 @@ export function LibraryPage() {
         </div>
 
         {!search.fav && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 lg:hidden">
             <span className="text-[12px] text-[var(--ink-4)]">排序</span>
             <Segmented
               label="排序方式"
@@ -144,8 +156,8 @@ export function LibraryPage() {
       {/* 最近游玩 */}
       {showRails && recentGames.length > 0 && (
         <Rail title="最近游玩" icon={<IconClock size={15} />}>
-          {recentGames.map((g) => (
-            <GameCard key={g!.id} game={g!} />
+          {recentGames.map((g, i) => (
+            <GameCard key={g!.id} game={g!} index={i} eager />
           ))}
         </Rail>
       )}
@@ -153,8 +165,8 @@ export function LibraryPage() {
       {/* 我的收藏 */}
       {showRails && favoriteGames.length > 0 && (
         <Rail title="我的收藏" icon={<IconHeart size={15} />}>
-          {favoriteGames.map((g) => (
-            <GameCard key={g!.id} game={g!} />
+          {favoriteGames.map((g, i) => (
+            <GameCard key={g!.id} game={g!} index={i} eager />
           ))}
         </Rail>
       )}
@@ -188,8 +200,9 @@ function Rail({
 }) {
   return (
     <section className="mb-8">
-      <h2 className="mb-3 flex items-center gap-2 px-1 text-[13px] font-semibold uppercase tracking-wide text-[var(--ink-3)]">
-        <span aria-hidden className="text-[var(--color-brand)]">{icon}</span>
+      <h2 className="mb-3 flex items-center gap-2 px-1 text-[13px] font-semibold text-[var(--ink-2)]">
+        <span aria-hidden className="h-4 w-[3px] shrink-0 rounded-full bg-[var(--color-brand)]" />
+        <span aria-hidden className="text-[var(--ink-3)]">{icon}</span>
         {title}
       </h2>
       <div className="rail">{children}</div>
