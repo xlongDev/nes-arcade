@@ -6,8 +6,10 @@ import { useLibrary } from '@/stores/library'
 import { usePrefs } from '@/stores/prefs'
 import { listSaves, deleteSave } from '@/lib/storage'
 import { toast } from '@/components/ui/Toast'
+import { confirmDialog } from '@/components/ui/ConfirmDialog'
 import { GlassButton } from '@/components/ui/GlassButton'
 import { GlassPanel } from '@/components/ui/GlassPanel'
+import { GlassDialog } from '@/components/ui/GlassDialog'
 import { StatusBadge } from '@/components/emulator/StatusBadge'
 import { GameTopBar, GameToolbar, ShortcutHints } from '@/components/emulator/GameHUD'
 import { IconBack, IconClose, IconGrid, IconLoad, IconSave } from '@/components/ui/Icons'
@@ -91,6 +93,11 @@ export function PlayPage() {
     [game, setCover],
   )
 
+  /** 重试计数：+1 即重新启动模拟器（见 useEmulator 的 runId） */
+  const [runId, setRunId] = useState(0)
+  /** 本次游玩累计秒数，仅运行时增长，切游戏 / 重试时归零 */
+  const [elapsed, setElapsed] = useState(0)
+
   const api = useEmulator({
     game,
     canvasRef,
@@ -100,6 +107,7 @@ export function PlayPage() {
     autoCover,
     onCover,
     onRecordSecond,
+    runId,
   })
 
   const [panel, setPanel] = useState<'none' | 'slots'>('none')
@@ -129,13 +137,8 @@ export function PlayPage() {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
-      if (panel) {
-        if (e.code === 'Escape') {
-          e.preventDefault()
-          setPanel('none')
-        }
-        return
-      }
+      // 面板开着时游戏快捷键全部让路；Esc 由 GlassDialog 在 capture 阶段接管
+      if (panel) return
       if (e.code === 'Space' && canUseSpace && !(e.code in keymap)) {
         e.preventDefault()
         api.togglePause()
@@ -188,6 +191,16 @@ export function PlayPage() {
 
   const playing = api.status === 'running'
 
+  // 已玩时长：切换游戏 / 重试时归零；仅在运行时每秒 +1，暂停时冻结
+  useEffect(() => {
+    setElapsed(0)
+  }, [game?.id, runId])
+  useEffect(() => {
+    if (api.status !== 'running') return
+    const t = window.setInterval(() => setElapsed((e) => e + 1), 1000)
+    return () => clearInterval(t)
+  }, [api.status])
+
   const handleSave = async (slot: number) => {
     try {
       await api.saveSlot(slot)
@@ -207,8 +220,17 @@ export function PlayPage() {
     }
   }
   const handleDelete = async (slot: number) => {
+    // 存档删了就真没了（IndexedDB 里没有回收站），必须拦一道
+    const ok = await confirmDialog({
+      title: `删除第 ${slot} 个存档位？`,
+      description: '存档只保存在这台设备上，删除后无法恢复。',
+      confirmText: '删除',
+      tone: 'danger',
+    })
+    if (!ok) return
     await deleteSave(game.id, slot)
     void refreshSaves()
+    toast.success(`已删除第 ${slot} 个存档位`)
   }
   const handleCover = async () => {
     const url = await api.screenshot()
@@ -217,19 +239,26 @@ export function PlayPage() {
       toast.success('已用当前画面更新封面')
     }
   }
-  const handleRemove = () => {
+  const handleRemove = async () => {
+    const ok = await confirmDialog({
+      title: `从本地移除《${game.title}》？`,
+      description: '这份 ROM 只存在这台设备上，移除后需要重新上传才能再玩。',
+      confirmText: '移除',
+      tone: 'danger',
+    })
+    if (!ok) return
     removeCustomGame(game.id)
     toast.success('已移除本地 ROM')
     void navigate({ to: '/', search: HOME_SEARCH })
   }
 
   return (
-    <div className="stack-page flex min-h-[100dvh] flex-col gap-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-4">
+    <div className="stack-page flex min-h-[100dvh] flex-col gap-4 pb-[max(28px,env(safe-area-inset-bottom))] pt-4">
       <GameTopBar game={game} isFavorite={isFavorite} onToggleFavorite={toggleFavorite} />
 
       {/* 画面 + 状态条 */}
       <div className="relative flex flex-1 flex-col items-center justify-center gap-3">
-        <StatusBadge status={api.status} />
+        <StatusBadge status={api.status} elapsed={elapsed} />
 
         <GlassPanel
           radius="xl"
@@ -253,18 +282,27 @@ export function PlayPage() {
                 </div>
               </div>
             )}
-            {api.status === 'error' && (
-              <div className="absolute inset-0 grid place-items-center bg-black/80 p-6 text-center">
-                <div className="flex flex-col items-center gap-3">
-                  <span className="text-[14px] font-medium text-[var(--color-rose)]">启动失败</span>
-                  <span className="max-w-xs text-[12px] text-[var(--ink-3)]">{api.error}</span>
+          {api.status === 'error' && (
+            <div className="absolute inset-0 grid place-items-center bg-black/80 p-6 text-center">
+              <div className="flex flex-col items-center gap-3">
+                <span className="text-[14px] font-medium text-[var(--color-rose)]">启动失败</span>
+                <span className="max-w-xs text-[12px] text-[var(--ink-3)]">{api.error}</span>
+                <div className="mt-1 flex items-center gap-2">
+                  <GlassButton variant="primary" onClick={() => setRunId((r) => r + 1)}>
+                    重试
+                  </GlassButton>
                   <GlassButton variant="glass" onClick={() => navigate({ to: '/', search: HOME_SEARCH })}>
                     返回游戏库
                   </GlassButton>
                 </div>
+                <span className="max-w-xs text-[11px] leading-relaxed text-[var(--ink-4)]">
+                  若多次失败，可能是该 ROM 不被 fceumm 内核支持。可换一份 ROM，或在仓库提 Issue 反馈。
+                </span>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+        </div>
         </GlassPanel>
       </div>
 
@@ -291,76 +329,86 @@ export function PlayPage() {
       )}
 
       {/* 存档 / 读档面板 */}
-      {panel === 'slots' && (
-        <div
-          className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 backdrop-blur-sm sm:items-center"
-          onClick={() => setPanel('none')}
-        >
-          <GlassPanel
-            radius="xl"
-            sheen
-            className="w-full max-w-md p-5"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-[15px] font-semibold">
-                <IconGrid size={17} /> 存档管理
-              </h2>
-              <button
-                type="button"
-                onClick={() => setPanel('none')}
-                aria-label="关闭"
-                className="grid size-9 place-items-center rounded-full text-[var(--ink-3)] hover:bg-[color-mix(in_srgb,var(--ink-1)_10%,transparent)]"
+      <GlassDialog
+        open={panel === 'slots'}
+        onClose={() => setPanel('none')}
+        title="存档管理"
+        icon={<IconGrid size={17} />}
+        footer={
+          <p className="text-[11px] leading-snug text-[var(--ink-4)]">
+            {game.isCustom ? '本地上传 ROM' : `Mapper ${game.mapper} · ${game.hasBattery ? '电池存档' : '无电池'} · fceumm 内核`}
+          </p>
+        }
+      >
+        <ul className="flex flex-col gap-2">
+          {Array.from({ length: SLOT_COUNT }, (_, i) => i + 1).map((slot) => {
+            const s = saves.find((x) => x.slot === slot)
+            return (
+              <li
+                key={slot}
+                className={cx(
+                  'flex items-center gap-3 rounded-[var(--radius-glass-md)] border p-2.5',
+                  'transition-colors',
+                  // 有存档的槽位给一点存在感，空槽位退到背景里
+                  s
+                    ? 'border-[var(--line-2)] bg-[color-mix(in_srgb,var(--ink-1)_7%,transparent)]'
+                    : 'border-dashed border-[var(--line-1)] bg-transparent',
+                )}
               >
-                <IconClose size={18} />
-              </button>
-            </div>
-            <ul className="flex flex-col gap-2">
-              {Array.from({ length: SLOT_COUNT }, (_, i) => i + 1).map((slot) => {
-                const s = saves.find((x) => x.slot === slot)
-                return (
-                  <li
-                    key={slot}
-                    className="flex items-center gap-3 rounded-[var(--radius-glass-md)] border border-[var(--line-1)] bg-[color-mix(in_srgb,var(--ink-1)_5%,transparent)] p-2.5"
+                <div className="size-20 shrink-0 overflow-hidden rounded-[10px] bg-black">
+                  {s?.thumbnail ? (
+                    <img src={s.thumbnail} alt="" className="size-full object-cover" />
+                  ) : (
+                    <div className="grid size-full place-items-center text-[10px] text-[var(--ink-4)]">
+                      空
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-medium">第 {slot} 个存档位</p>
+                  <p className="truncate text-[11px] text-[var(--ink-3)]">
+                    {s ? `${formatRelative(s.createdAt)} · ${Math.round(s.bytes / 1024)} KB` : '未使用'}
+                  </p>
+                </div>
+                <div className="flex shrink-0 gap-1.5">
+                  <GlassButton
+                    size="sm"
+                    variant="glass"
+                    onClick={() => handleSave(slot)}
+                    disabled={api.status === 'error'}
+                    aria-label={s ? `覆盖第 ${slot} 个存档位` : `存入第 ${slot} 个存档位`}
                   >
-                    <div className="size-14 shrink-0 overflow-hidden rounded-[10px] bg-black">
-                      {s?.thumbnail ? (
-                        <img src={s.thumbnail} alt="" className="size-full object-cover" />
-                      ) : (
-                        <div className="grid size-full place-items-center text-[10px] text-[var(--ink-4)]">
-                          空
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[13px] font-medium">第 {slot} 个存档位</p>
-                      <p className="truncate text-[11px] text-[var(--ink-3)]">
-                        {s ? `${formatRelative(s.createdAt)} · ${Math.round(s.bytes / 1024)} KB` : '未使用'}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 gap-1.5">
-                      <GlassButton size="sm" variant="glass" onClick={() => handleSave(slot)} disabled={api.status === 'error'}>
-                        <IconSave size={14} /> 存
-                      </GlassButton>
-                      <GlassButton size="sm" variant="glass" onClick={() => handleLoad(slot)} disabled={!s}>
-                        <IconLoad size={14} /> 读
-                      </GlassButton>
-                      {s && (
-                        <GlassButton size="sm" variant="glass" onClick={() => handleDelete(slot)} aria-label={`删除第 ${slot} 存档`}>
-                          <IconClose size={14} />
-                        </GlassButton>
-                      )}
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-            <p className="mt-3 text-[11px] leading-snug text-[var(--ink-4)]">
-              存档保存在浏览器本地（IndexedDB），换设备不会同步。带电池存档的游戏会自动保存进度。
-            </p>
-          </GlassPanel>
-        </div>
-      )}
+                    <IconSave size={14} /> 存
+                  </GlassButton>
+                  <GlassButton
+                    size="sm"
+                    variant="glass"
+                    onClick={() => handleLoad(slot)}
+                    disabled={!s}
+                    aria-label={`读取第 ${slot} 个存档位`}
+                  >
+                    <IconLoad size={14} /> 读
+                  </GlassButton>
+                  {s && (
+                    <GlassButton
+                      size="sm"
+                      variant="glass"
+                      onClick={() => void handleDelete(slot)}
+                      aria-label={`删除第 ${slot} 个存档位`}
+                      className="hover:text-[var(--color-rose)]"
+                    >
+                      <IconClose size={14} />
+                    </GlassButton>
+                  )}
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+        <p className="mt-3 text-[11px] leading-snug text-[var(--ink-4)]">
+          存档保存在浏览器本地（IndexedDB），换设备不会同步。带电池存档的游戏会自动保存进度。
+        </p>
+      </GlassDialog>
     </div>
   )
 }

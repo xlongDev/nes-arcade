@@ -32,6 +32,11 @@ interface UseEmulatorArgs {
   autoCover: boolean
   onCover: (dataUrl: string) => void
   onRecordSecond: (seconds: number) => void
+  /**
+   * 重启用。改变它等于"重新启动"——effect cleanup 会先退出当前实例再重新拉起。
+   * 启动失败时让 PlayPage 把 runId +1 即可重试，不必自己造一套重启逻辑。
+   */
+  runId?: number
 }
 
 function blobToDataURL(blob: Blob): Promise<string> {
@@ -71,6 +76,7 @@ export function useEmulator({
   autoCover,
   onCover,
   onRecordSecond,
+  runId = 0,
 }: UseEmulatorArgs) {
   const [status, setStatusState] = useState<EmuStatus>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -283,7 +289,7 @@ export function useEmulator({
       uninstallVolumeHook()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [game?.id])
+  }, [game?.id, runId])
 
   const api: EmulatorApi = {
     status,

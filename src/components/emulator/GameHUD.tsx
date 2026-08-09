@@ -4,9 +4,13 @@ import type { Game } from '@/types/game'
 import type { EmulatorApi } from '@/features/emulator/useEmulator'
 import { GlassButton } from '@/components/ui/GlassButton'
 import { VolumeControl } from '@/components/ui/VolumeControl'
+import { useThemeToggle } from '@/lib/useThemeSync'
+import { cx } from '@/lib/cx'
 import {
   IconBack,
   IconHeart,
+  IconSun,
+  IconMoon,
   IconPause,
   IconPlay,
   IconReset,
@@ -31,6 +35,7 @@ export const GameTopBar = memo(function GameTopBar({
   isFavorite: boolean
   onToggleFavorite: (id: string) => void
 }) {
+  const { isDark, toggle } = useThemeToggle()
   return (
     <header className="flex items-center gap-2">
       <Link to="/" search={HOME_SEARCH} aria-label="返回游戏库" className="shrink-0">
@@ -40,18 +45,33 @@ export const GameTopBar = memo(function GameTopBar({
       </Link>
       <div className="min-w-0 flex-1">
         <h1 className="truncate text-[15px] font-semibold leading-tight">{game.title}</h1>
-        <p className="truncate text-[11px] text-[var(--ink-3)]">
-          {game.isCustom ? '本地上传' : `${game.hasBattery ? '电池存档 · ' : ''}Mapper ${game.mapper}`}
-        </p>
       </div>
       <GlassButton
-        variant={isFavorite ? 'primary' : 'glass'}
+        variant="glass"
         size="icon"
         onClick={() => onToggleFavorite(game.id)}
         aria-label={isFavorite ? '取消收藏' : '收藏'}
         aria-pressed={isFavorite}
+        title={isFavorite ? '已收藏' : '收藏'}
+        className={cx(
+          'transition-[color,background-color,border-color] duration-300 [transition-timing-function:var(--ease-glass)]',
+          isFavorite &&
+            'border-[color-mix(in_srgb,var(--color-rose)_38%,transparent)] bg-[color-mix(in_srgb,var(--color-rose)_12%,transparent)] text-[var(--color-rose)]',
+        )}
       >
-        <IconHeart size={18} filled={isFavorite} />
+        {/* key 随选中态翻转 → 每次点击重播一次轻微心跳，克制不抢戏 */}
+        <span key={isFavorite ? 'on' : 'off'} className={cx(isFavorite && 'heart-pop')}>
+          <IconHeart size={18} filled={isFavorite} />
+        </span>
+      </GlassButton>
+      <GlassButton
+        variant="glass"
+        size="icon"
+        onClick={toggle}
+        aria-label={isDark ? '切换到浅色主题' : '切换到深色主题'}
+        title={isDark ? '浅色主题' : '深色主题'}
+      >
+        {isDark ? <IconSun size={18} /> : <IconMoon size={18} />}
       </GlassButton>
     </header>
   )
@@ -91,11 +111,13 @@ export const GameToolbar = memo(function GameToolbar({
     <div className="flex flex-wrap items-center justify-center gap-2">
       <GlassButton
         variant={playing ? 'glass' : 'primary'}
+        size="icon"
         onClick={api.togglePause}
         disabled={disabled}
+        title={playing ? '暂停' : '继续'}
+        aria-label={playing ? '暂停' : '继续'}
       >
-        {playing ? <IconPause size={16} /> : <IconPlay size={16} />}
-        {playing ? '暂停' : '继续'}
+        {playing ? <IconPause size={18} /> : <IconPlay size={18} />}
       </GlassButton>
       <GlassButton variant="glass" size="icon" onClick={api.reset} title="重置游戏" aria-label="重置游戏">
         <IconReset size={18} />
@@ -115,6 +137,7 @@ export const GameToolbar = memo(function GameToolbar({
         muted={muted}
         onVolumeChange={onVolumeChange}
         onToggleMute={onToggleMute}
+        collapsible
       />
 
       <GlassButton
@@ -128,12 +151,12 @@ export const GameToolbar = memo(function GameToolbar({
       </GlassButton>
       <GlassButton
         variant={panelOpen ? 'primary' : 'glass'}
+        size="icon"
         onClick={onTogglePanel}
         title="存档 / 读档"
         aria-label="存档 / 读档"
       >
-        <IconSave size={16} />
-        <span className="hidden sm:inline">存档</span>
+        <IconSave size={18} />
       </GlassButton>
 
       {onRemove && (

@@ -22,6 +22,8 @@ interface StatusBadgeProps {
   core?: string
   /** 是否展示"离线可用"徽标（本地内核、无运行时 CDN 依赖） */
   offline?: boolean
+  /** 已玩时长（秒），仅 running/paused 态展示 */
+  elapsed?: number
   className?: string
 }
 
@@ -33,13 +35,21 @@ interface StatusBadgeProps {
  * - role=status + aria-live=polite：状态切换时屏幕阅读器会播报
  * - 加载态用 ping 脉冲点，而非整段文字闪烁，更克制
  */
+function formatClock(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60)
+  const s = totalSeconds % 60
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
 export const StatusBadge = memo(function StatusBadge({
   status,
   core = 'fceumm',
   offline = true,
+  elapsed = 0,
   className,
 }: StatusBadgeProps) {
   const meta = STATUS_META[status]
+  const showElapsed = elapsed > 0 && (status === 'running' || status === 'paused')
   return (
     <div
       role="status"
@@ -57,6 +67,14 @@ export const StatusBadge = memo(function StatusBadge({
         <span className={cx('size-2 rounded-full', meta.dot)} />
       </span>
       <span className="font-medium text-[var(--ink-1)]">{meta.label}</span>
+      {showElapsed && (
+        <>
+          <span aria-hidden className="text-[var(--ink-4)]">·</span>
+          <span aria-hidden className="tnum font-mono text-[11px] text-[var(--ink-2)]">
+            {formatClock(elapsed)}
+          </span>
+        </>
+      )}
       <span className="text-[var(--ink-4)]">·</span>
       <span className="font-mono text-[11px] text-[var(--ink-3)]">{core}</span>
       {offline && (
