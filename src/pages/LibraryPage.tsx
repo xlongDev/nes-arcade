@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { Segmented } from '@/components/ui/Segmented'
 import { CategoryFilter as CategoryFilterChips } from '@/components/ui/CategoryFilter'
@@ -7,11 +7,12 @@ import { GameCard } from '@/features/library/GameCard'
 import { useGameSearch } from '@/features/library/useGameSearch'
 import { useLibrary } from '@/stores/library'
 import { useGridPointerGlow } from '@/lib/pointer'
+import { cx } from '@/lib/cx'
 import { CATEGORIES } from '@/data/games.meta'
-import { CATEGORY_COUNTS, getGame, TOTAL_BYTES } from '@/data/games'
+import { CATEGORY_COUNTS, GAMES, getGame, TOTAL_BYTES } from '@/data/games'
 import { formatBytes } from '@/lib/format'
 import { IconHeart, IconClock, IconSparkle, IconSearch, IconUpload } from '@/components/ui/Icons'
-import type { CategoryFilter } from '@/types/game'
+import type { Category, CategoryFilter } from '@/types/game'
 import type { LibrarySearch, SortKey } from '@/router'
 
 const SORT_OPTIONS = [
@@ -45,7 +46,7 @@ export function LibraryPage() {
     hasTrainer: false,
     mirroring: 'horizontal' as const,
     format: 'iNES' as const,
-    category: 'action' as const,
+    category: c.category ?? 'action',
     players: 1 as const,
     desc: '本地上传的 ROM',
     alias: [],
@@ -56,16 +57,54 @@ export function LibraryPage() {
     isCustom: true,
   })))
 
-  const categoryOptions = useMemo(
-    () =>
-      CATEGORIES.map((c) => ({
+  // 根据当前库里实际存在的分类动态生成筛选选项（空分类不显示），"全部"始终保留。
+  // 旧版 localStorage 里的 custom 游戏可能没 category 字段，兜底按 action 计。
+  const activeCategories = useMemo(() => {
+    const set = new Set<Category>()
+    for (const g of GAMES) set.add(g.category)
+    for (const c of customGames) set.add(c.category ?? 'action')
+    return set
+  }, [customGames])
+
+  const categoryOptions = useMemo(() => {
+    const counts: Record<string, number> = { ...CATEGORY_COUNTS }
+    for (const c of customGames) {
+      const cat = c.category ?? 'action'
+      counts[cat] = (counts[cat] ?? 0) + 1
+    }
+    counts.all = (counts.all ?? 0) + customGames.length
+    return CATEGORIES.filter((c) => c.id === 'all' || activeCategories.has(c.id as Category)).map(
+      (c) => ({
         value: c.id as CategoryFilter,
         label: c.label,
         icon: c.icon,
-        count: CATEGORY_COUNTS[c.id] ?? 0,
-      })),
-    [],
-  )
+        count: counts[c.id] ?? 0,
+      }),
+    )
+  }, [customGames, activeCategories])
+
+  // 如果当前筛选的分类已经不存在（比如删掉了该分类下所有游戏），自动切回全部，避免空结果。
+  useEffect(() => {
+    if (search.cat !== 'all' && !activeCategories.has(search.cat)) {
+      setSearch({ cat: 'all' })
+    }
+  }, [search.cat, activeCategories])
+
+  // 切换分类 / 收藏筛选时，让结果网格整体轻量淡入上移（grid-refresh），柔化新旧结果的切换。
+  // 用 layout effect 在绘制前重播动画，避免先闪出新内容再补动画；首屏不播。
+  // 不重挂载网格，指针光晕的 ref 不丢、布局也不抖。
+  const firstRender = useRef(true)
+  useLayoutEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false
+      return
+    }
+    const el = gridRef.current
+    if (!el) return
+    el.classList.remove('grid-refresh')
+    void el.offsetWidth // 强制回流，确保移除后再添加能重启动画
+    el.classList.add('grid-refresh')
+  }, [search.cat, search.fav])
 
   const recentGames = useMemo(
     () => recents.map((r) => getGame(r.gameId)).filter(Boolean).slice(0, 12),
@@ -75,6 +114,14 @@ export function LibraryPage() {
     () => favorites.map((id) => getGame(id)).filter(Boolean).slice(0, 12),
     [favorites],
   )
+
+  // 英雄区的总数与总体积也要把上传游戏算进去
+  const customBytes = useMemo(
+    () => customGames.reduce((s, c) => s + c.bytes, 0),
+    [customGames],
+  )
+  const totalCount = (CATEGORY_COUNTS.all ?? 0) + customGames.length
+  const totalBytes = TOTAL_BYTES + customBytes
 
   const setSearch = (patch: Partial<LibrarySearch>) =>
     void navigate({ to: '/', search: () => ({ ...search, ...patch }) })
@@ -92,7 +139,7 @@ export function LibraryPage() {
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
           游戏库
           <span className="ml-2 align-middle text-base font-normal text-[var(--ink-3)]">
-            {CATEGORY_COUNTS.all} 款 · {formatBytes(TOTAL_BYTES)}
+            {totalCount} 款 · {formatBytes(totalBytes)}
           </span>
         </h1>
         <p className="mt-2 max-w-xl text-[14px] text-[var(--ink-3)]">
@@ -127,12 +174,17 @@ export function LibraryPage() {
           )}
 
           <GlassButton
-            variant={search.fav ? 'primary' : 'glass'}
+            variant="glass"
             size="md"
             active={search.fav}
             onClick={() => setSearch({ fav: !search.fav })}
             aria-label="只看收藏"
             title="只看收藏"
+            className={cx(
+              'transition-[color,background-color,border-color] duration-300 [transition-timing-function:var(--ease-glass)]',
+              search.fav &&
+                'border-[color-mix(in_srgb,var(--color-rose)_38%,transparent)] bg-[color-mix(in_srgb,var(--color-rose)_12%,transparent)] text-[var(--color-rose)]',
+            )}
           >
             <IconHeart size={16} filled={search.fav} />
             <span className="hidden sm:inline">收藏</span>
