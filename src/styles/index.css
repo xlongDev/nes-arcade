@@ -1,0 +1,65 @@
+@import './theme.css';
+@import './glass.css';
+
+/* 用户在设置里手动关掉玻璃时（低端机救急开关） */
+[data-glass='off'] .glass,
+[data-glass='off'] .glass-frame,
+[data-glass='off'] .glass-faux-hoverable:hover {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+[data-glass='off'] .aurora {
+  opacity: 0.28;
+}
+[data-glass='off'] .grain {
+  display: none;
+}
+
+/* 布局工具 —— 只在多处复用的才提取，其余走 Tailwind 原子类 */
+.stack-page {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 1440px;
+  margin-inline: auto;
+  padding-inline: clamp(16px, 4vw, 40px);
+}
+
+/* 顶部安全区（刘海屏 / 手势条） */
+.safe-t {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-b {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* 卡片网格：自适应列数，最小 168px，桌面最多铺满 */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(148px, 20vw, 208px), 1fr));
+  gap: clamp(12px, 1.6vw, 22px);
+}
+
+/* 横向滚动条（最近游玩 / 收藏轨道） */
+.rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(158px, 208px);
+  gap: 14px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding-block: 4px;
+  scrollbar-width: none;
+}
+.rail::-webkit-scrollbar {
+  display: none;
+}
+.rail > * {
+  scroll-snap-align: start;
+}
+
+/* 数字等宽，避免计时器跳动 */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}

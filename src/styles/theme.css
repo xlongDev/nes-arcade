@@ -1,0 +1,232 @@
+@import 'tailwindcss';
+
+/* ============================================================
+   设计令牌
+   液态玻璃的核心是"层级"：不同深度的玻璃有不同的透明度与模糊半径。
+   把这些量化成令牌，才不会在组件里到处写魔法数字。
+   ============================================================ */
+@theme {
+  /* 圆角阶梯 —— 超大圆角必须成体系，否则显得随意 */
+  --radius-glass-xs: 12px;
+  --radius-glass-sm: 18px;
+  --radius-glass-md: 28px;
+  --radius-glass-lg: 40px;
+  --radius-glass-xl: 48px;
+
+  /* 品牌色 */
+  --color-brand: #7c8cff;
+  --color-brand-soft: #a4b0ff;
+  --color-mint: #58e0c4;
+  --color-amber: #ffb454;
+  --color-rose: #ff7a9c;
+
+  /* 分类色 —— 每个分类一个可辨识的色相，用于封面与标签 */
+  --color-cat-action: #ff7a5c;
+  --color-cat-shooter: #6ea8ff;
+  --color-cat-fighting: #ff6b8b;
+  --color-cat-puzzle: #59d3a8;
+  --color-cat-sports: #ffc247;
+  --color-cat-rpg: #b58cff;
+  --color-cat-board: #7fd1e0;
+  --color-cat-multicart: #ff9ed2;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro SC', 'PingFang SC', 'Segoe UI',
+    'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'SF Mono', ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
+
+  --ease-glass: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ============================================================
+   明暗主题
+   用 data-theme 而不是 class，避免和 Tailwind 的 dark: 变体打架。
+   ============================================================ */
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg-base: #06070c;
+  --bg-deep: #03040a;
+
+  --ink-1: #f4f6fb;
+  --ink-2: rgba(244, 246, 251, 0.72);
+  --ink-3: rgba(244, 246, 251, 0.46);
+  --ink-4: rgba(244, 246, 251, 0.26);
+
+  /* 玻璃三级：frame 常驻框架 / panel 面板 / card 卡片 */
+  --glass-frame: linear-gradient(
+    148deg,
+    rgba(255, 255, 255, 0.12),
+    rgba(255, 255, 255, 0.04) 46%,
+    rgba(255, 255, 255, 0.07)
+  );
+  --glass-panel: linear-gradient(
+    148deg,
+    rgba(255, 255, 255, 0.09),
+    rgba(255, 255, 255, 0.03) 50%,
+    rgba(255, 255, 255, 0.055)
+  );
+  --glass-card: linear-gradient(
+    155deg,
+    rgba(255, 255, 255, 0.075),
+    rgba(255, 255, 255, 0.022) 55%,
+    rgba(255, 255, 255, 0.045)
+  );
+
+  --line-1: rgba(255, 255, 255, 0.1);
+  --line-2: rgba(255, 255, 255, 0.2);
+  --line-3: rgba(255, 255, 255, 0.32);
+
+  /* 镜面反光：上缘亮、下缘暗，这是"厚度感"的来源 */
+  --bevel: inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(255, 255, 255, 0.045),
+    inset 1px 0 0 rgba(255, 255, 255, 0.06), inset -1px 0 0 rgba(255, 255, 255, 0.06);
+  --bevel-soft: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 rgba(255, 255, 255, 0.03);
+
+  --drop-lg: 0 28px 70px -26px rgba(0, 0, 0, 0.85);
+  --drop-md: 0 18px 44px -20px rgba(0, 0, 0, 0.72);
+  --drop-sm: 0 8px 24px -14px rgba(0, 0, 0, 0.6);
+
+  --sheen: rgba(255, 255, 255, 0.16);
+
+  --aurora-1: #4a4ce8;
+  --aurora-2: #0f7f8f;
+  --aurora-3: #8a2f6b;
+  --aurora-opacity: 0.55;
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+
+  --bg-base: #eef1f8;
+  --bg-deep: #e2e7f3;
+
+  --ink-1: #0d1020;
+  --ink-2: rgba(13, 16, 32, 0.72);
+  --ink-3: rgba(13, 16, 32, 0.5);
+  --ink-4: rgba(13, 16, 32, 0.3);
+
+  /* 浅色玻璃靠"更白"而不是"更透"，否则会糊成一片 */
+  --glass-frame: linear-gradient(
+    148deg,
+    rgba(255, 255, 255, 0.78),
+    rgba(255, 255, 255, 0.52) 46%,
+    rgba(255, 255, 255, 0.68)
+  );
+  --glass-panel: linear-gradient(
+    148deg,
+    rgba(255, 255, 255, 0.7),
+    rgba(255, 255, 255, 0.46) 50%,
+    rgba(255, 255, 255, 0.6)
+  );
+  --glass-card: linear-gradient(
+    155deg,
+    rgba(255, 255, 255, 0.66),
+    rgba(255, 255, 255, 0.4) 55%,
+    rgba(255, 255, 255, 0.55)
+  );
+
+  --line-1: rgba(13, 16, 32, 0.1);
+  --line-2: rgba(13, 16, 32, 0.16);
+  --line-3: rgba(13, 16, 32, 0.26);
+
+  --bevel: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(13, 16, 32, 0.05),
+    inset 1px 0 0 rgba(255, 255, 255, 0.6), inset -1px 0 0 rgba(255, 255, 255, 0.6);
+  --bevel-soft: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -1px 0 rgba(13, 16, 32, 0.03);
+
+  --drop-lg: 0 28px 70px -30px rgba(23, 30, 60, 0.42);
+  --drop-md: 0 18px 44px -22px rgba(23, 30, 60, 0.34);
+  --drop-sm: 0 8px 24px -16px rgba(23, 30, 60, 0.3);
+
+  --sheen: rgba(255, 255, 255, 0.9);
+
+  --aurora-1: #8fa2ff;
+  --aurora-2: #7ce0d4;
+  --aurora-3: #ffa8d4;
+  --aurora-opacity: 0.5;
+}
+
+/* ============================================================
+   基础样式
+   ============================================================ */
+* {
+  border-color: var(--line-1);
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-base);
+  color: var(--ink-1);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  overscroll-behavior-y: none;
+  transition: background 0.6s var(--ease-glass), color 0.4s var(--ease-glass);
+}
+
+#root {
+  min-height: 100dvh;
+  isolation: isolate;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-brand) 40%, transparent);
+  color: var(--ink-1);
+}
+
+/* 滚动条也要有玻璃感 */
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line-2);
+  border-radius: 99px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--line-3);
+  background-clip: content-box;
+}
+
+/* 焦点环 —— 键盘导航必须看得见，这是无障碍底线 */
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}

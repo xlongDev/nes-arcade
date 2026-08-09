@@ -1,0 +1,293 @@
+/* ============================================================
+   液态玻璃材质
+   
+   性能纪律（这是本文件最重要的部分）：
+   backdrop-filter 会强制浏览器对背景做一次采样+模糊，代价极高。
+   86 张卡片各来一层能直接把帧率打到 20fps 以下。所以分成两类：
+   
+     .glass       真玻璃 —— 有 backdrop-filter，只给常驻框架用，全站 ≤6 层
+     .glass-faux  伪玻璃 —— 无 backdrop-filter，靠渐变+边框+反光模拟
+   
+   卡片一律用 .glass-faux；只有被 hover 的那一张临时升级为真玻璃。
+   ============================================================ */
+
+.glass {
+  position: relative;
+  background: var(--glass-panel);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid var(--line-1);
+  box-shadow: var(--bevel), var(--drop-md);
+}
+
+.glass-frame {
+  position: relative;
+  background: var(--glass-frame);
+  backdrop-filter: blur(34px) saturate(200%);
+  -webkit-backdrop-filter: blur(34px) saturate(200%);
+  border: 1px solid var(--line-1);
+  box-shadow: var(--bevel), var(--drop-lg);
+}
+
+/* 伪玻璃：视觉上几乎一致，但不触发背景采样 */
+.glass-faux {
+  position: relative;
+  background: var(--glass-card);
+  border: 1px solid var(--line-1);
+  box-shadow: var(--bevel-soft), var(--drop-sm);
+}
+
+/* 只在指针悬停的那一张卡片上启用真模糊。
+   :hover 是互斥的，所以同时最多只有 1 层额外的 backdrop-filter。 */
+@media (hover: hover) and (pointer: fine) {
+  .glass-faux-hoverable:hover {
+    backdrop-filter: blur(20px) saturate(170%);
+    -webkit-backdrop-filter: blur(20px) saturate(170%);
+    border-color: var(--line-2);
+    box-shadow: var(--bevel), var(--drop-md);
+  }
+}
+
+/* ------------------------------------------------------------
+   指针跟随高光
+   用 CSS 自定义属性驱动，JS 侧用 rAF 节流写入 --mx / --my。
+   ------------------------------------------------------------ */
+.glass-sheen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    var(--sheen-size, 420px) circle at var(--mx, 50%) var(--my, 0%),
+    var(--sheen),
+    transparent 62%
+  );
+  opacity: 0;
+  transition: opacity 0.5s var(--ease-glass);
+  z-index: 1;
+}
+.glass-sheen:hover::before,
+.glass-sheen:focus-within::before {
+  opacity: 1;
+}
+
+/* ------------------------------------------------------------
+   边缘折射
+   真实玻璃边缘会把背景"抻"一下。用一圈内发光近似，
+   比 SVG feDisplacementMap 便宜得多，且 Safari 无兼容问题。
+   ------------------------------------------------------------ */
+.glass-refract::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  padding: 1px;
+  background: linear-gradient(
+    140deg,
+    rgba(255, 255, 255, 0.5),
+    transparent 28%,
+    transparent 72%,
+    rgba(255, 255, 255, 0.22)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  z-index: 2;
+}
+
+/* ------------------------------------------------------------
+   极光背景
+   固定在最底层，模糊 + 缓慢漂移。游戏运行时会被暂停（.aurora-paused）
+   以把 GPU 让给模拟器。
+   ------------------------------------------------------------ */
+.aurora {
+  position: fixed;
+  inset: -25vh -25vw;
+  z-index: 0;
+  pointer-events: none;
+  filter: blur(90px);
+  opacity: var(--aurora-opacity);
+  transition: opacity 0.8s var(--ease-glass);
+  contain: strict;
+}
+.aurora-blob {
+  position: absolute;
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  will-change: transform;
+  animation: aurora-drift 26s var(--ease-glass) infinite;
+}
+[data-theme='light'] .aurora-blob {
+  mix-blend-mode: multiply;
+}
+.aurora-paused .aurora-blob {
+  animation-play-state: paused;
+}
+.aurora-paused {
+  opacity: calc(var(--aurora-opacity) * 0.45);
+}
+
+@keyframes aurora-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(6vw, -5vh, 0) scale(1.14);
+  }
+  66% {
+    transform: translate3d(-5vw, 6vh, 0) scale(0.9);
+  }
+}
+
+/* 胶片颗粒 —— 抵消大面积渐变的塑料感 */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.035;
+  contain: strict;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");
+}
+[data-theme='light'] .grain {
+  opacity: 0.022;
+}
+
+/* ------------------------------------------------------------
+   动效基元
+   ------------------------------------------------------------ */
+@keyframes float-in {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.float-in {
+  animation: float-in 0.62s var(--ease-glass) both;
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand) 55%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 16px transparent;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: -220% 0;
+  }
+  to {
+    background-position: 220% 0;
+  }
+}
+.shimmer {
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    color-mix(in srgb, var(--ink-1) 8%, transparent) 45%,
+    transparent 70%
+  );
+  background-size: 220% 100%;
+  animation: shimmer 1.7s linear infinite;
+}
+
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ------------------------------------------------------------
+   游戏画面
+   NES 原生 256×240。必须用 pixelated，否则双线性插值会把像素糊成一团。
+   ------------------------------------------------------------ */
+.nes-screen canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  background: #000;
+}
+
+/* ------------------------------------------------------------
+   卡片网格性能优化
+   视口外的卡片跳过渲染。contain-intrinsic-size 必须给准，
+   否则滚动条会跳。
+   ------------------------------------------------------------ */
+.grid-perf > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 292px;
+}
+
+/* ------------------------------------------------------------
+   View Transition：卡片封面 → 游戏屏幕的形变
+   ------------------------------------------------------------ */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.42s;
+    animation-timing-function: var(--ease-glass);
+  }
+  ::view-transition-group(game-screen) {
+    animation-duration: 0.5s;
+    animation-timing-function: var(--ease-glass);
+  }
+}
+
+/* ------------------------------------------------------------
+   无障碍降级
+   ------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .aurora {
+    display: none;
+  }
+}
+
+/* 用户要求减少透明度时，玻璃全部退化成不透明面板 */
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .glass-frame,
+  .glass-faux {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: var(--bg-deep) !important;
+    border-color: var(--line-2);
+  }
+  .aurora,
+  .grain {
+    display: none;
+  }
+}
+
+/* 浏览器不支持 backdrop-filter 时的兜底 */
+@supports not (backdrop-filter: blur(1px)) {
+  .glass,
+  .glass-frame {
+    background: color-mix(in srgb, var(--bg-base) 88%, var(--ink-1) 6%);
+  }
+}

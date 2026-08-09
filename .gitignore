@@ -1,0 +1,49 @@
+# ---- Dependencies ----
+node_modules/
+.pnp
+.pnp.js
+
+# ---- Build output ----
+dist/
+dev-dist/
+*.tsbuildinfo
+
+# ---- ROM 文件 ----
+# 商业 ROM 不入库（版权原因）。
+# clone 后请自备 .nes 文件，放到仓库同级的 ../roms/ 目录，
+# 然后执行 `npm run prepare:data` 自动同步、扫描并生成元数据。
+public/roms/
+
+# ---- 自动生成的封面缓存 ----
+public/covers/
+
+# ---- Environment ----
+.env
+.env.local
+.env.*.local
+
+# ---- Logs ----
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---- Cache ----
+.vite/
+.cache/
+.eslintcache
+
+# ---- Editor / OS ----
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+.idea/
+*.swp
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# ---- AI agent workspace ----
+.workbuddy/
