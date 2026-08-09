@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import type { Game } from '@/types/game'
 import { coverPalette, coverGlyph, coverPixels } from '@/lib/cover'
 import { cx } from '@/lib/cx'
@@ -26,6 +26,7 @@ export const GameCover = memo(function GameCover({
   eager = false,
 }: GameCoverProps) {
   const [imgFailed, setImgFailed] = useState(false)
+  const [loaded, setLoaded] = useState(false)
 
   const palette = useMemo(() => coverPalette(game.title, game.category), [game.title, game.category])
   const glyph = useMemo(() => coverGlyph(game.title), [game.title])
@@ -33,6 +34,11 @@ export const GameCover = memo(function GameCover({
 
   const src = override ?? (game.cover ? `./${game.cover}` : null)
   const showImage = Boolean(src) && !imgFailed
+
+  // 封面地址变化（如截图更新）时重置加载态，重新走一次 shimmer
+  useEffect(() => {
+    setLoaded(false)
+  }, [src])
 
   return (
     <div
@@ -42,15 +48,20 @@ export const GameCover = memo(function GameCover({
       }}
     >
       {showImage ? (
-        <img
-          src={src as string}
-          alt=""
-          loading={eager ? 'eager' : 'lazy'}
-          decoding="async"
-          onError={() => setImgFailed(true)}
-          className="absolute inset-0 size-full object-cover"
-          style={{ imageRendering: override ? 'pixelated' : 'auto' }}
-        />
+        <>
+          {/* 图片解码完成前显示骨架微光，避免"啪"地一下弹出 */}
+          {!loaded && <span aria-hidden="true" className="cover-shimmer absolute inset-0" />}
+          <img
+            src={src as string}
+            alt=""
+            loading={eager ? 'eager' : 'lazy'}
+            decoding="async"
+            onError={() => setImgFailed(true)}
+            onLoad={() => setLoaded(true)}
+            className="absolute inset-0 size-full object-cover"
+            style={{ imageRendering: override ? 'pixelated' : 'auto' }}
+          />
+        </>
       ) : (
         <>
           {/* 主字形：大而虚，作为底纹而不是主角 */}

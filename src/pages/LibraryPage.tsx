@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react'
-import { useNavigate, useSearch } from '@tanstack/react-router'
+import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { Segmented } from '@/components/ui/Segmented'
 import { GlassButton } from '@/components/ui/GlassButton'
 import { GameCard } from '@/features/library/GameCard'
@@ -9,7 +9,7 @@ import { useGridPointerGlow } from '@/lib/pointer'
 import { CATEGORIES } from '@/data/games.meta'
 import { CATEGORY_COUNTS, getGame, TOTAL_BYTES } from '@/data/games'
 import { formatBytes } from '@/lib/format'
-import { IconHeart, IconClock, IconSparkle, IconSearch } from '@/components/ui/Icons'
+import { IconHeart, IconClock, IconSparkle, IconSearch, IconUpload } from '@/components/ui/Icons'
 import type { CategoryFilter } from '@/types/game'
 import type { LibrarySearch, SortKey } from '@/router'
 
@@ -84,6 +84,10 @@ export function LibraryPage() {
 
   const showRails = !search.q && search.cat === 'all' && !search.fav
 
+  // 真正"空库"（没有任何内置 ROM 也没有上传 ROM）与"筛选后为零"要区别对待：
+  // 前者需要引导用户添加 ROM，后者只需重置筛选。
+  const hasAnyGame = (CATEGORY_COUNTS.all ?? 0) > 0 || customGames.length > 0
+
   return (
     <div className="stack-page pb-28">
       {/* Hero */}
@@ -157,9 +161,11 @@ export function LibraryPage() {
 
       {/* 结果网格 */}
       {games.length === 0 ? (
-        <EmptyState
-          onReset={() => setSearch({ q: '', cat: 'all', fav: false })}
-        />
+        hasAnyGame ? (
+          <EmptyState onReset={() => setSearch({ q: '', cat: 'all', fav: false })} />
+        ) : (
+          <LibraryEmptyGuide />
+        )
       ) : (
         <div ref={gridRef} className="card-grid grid-perf mt-2">
           {games.map((g, i) => (
@@ -205,6 +211,74 @@ function EmptyState({ onReset }: { onReset: () => void }) {
         <IconSparkle size={16} />
         重置筛选
       </GlassButton>
+    </div>
+  )
+}
+
+/**
+ * 全新克隆、尚未放入任何 ROM 时的引导页。
+ * 与 README 的"三种获取方式"保持一致：网页上传 / 批量导入 / 合法来源。
+ * 只有真正空库（hasAnyGame === false）才渲染，避免和"筛选后为零"的 EmptyState 混淆。
+ */
+function LibraryEmptyGuide() {
+  return (
+    <div className="glass-faux mt-6 flex flex-col items-center gap-5 rounded-[var(--radius-glass-lg)] px-6 py-14 text-center">
+      <span className="grid size-16 place-items-center rounded-full bg-[color-mix(in_srgb,var(--color-brand)_18%,transparent)] text-[var(--color-brand)]">
+        <IconUpload size={28} />
+      </span>
+      <div>
+        <p className="text-[17px] font-semibold">游戏库还是空的</p>
+        <p className="mx-auto mt-1 max-w-md text-[13px] text-[var(--ink-3)]">
+          本合集不含任何游戏 ROM，需要你提供自己的卡带。三种方式任选其一：
+        </p>
+      </div>
+      <ol className="grid w-full max-w-md gap-2 text-left">
+        <li className="flex items-start gap-3 rounded-[var(--radius-glass-md)] border border-[var(--line-1)] bg-[color-mix(in_srgb,var(--ink-1)_4%,transparent)] p-3">
+          <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-[var(--color-brand)] text-[12px] font-semibold text-white">
+            1
+          </span>
+          <div>
+            <p className="text-[13px] font-medium">网页上传</p>
+            <p className="text-[12px] text-[var(--ink-3)]">在上传页直接拖入或选择 .nes 文件，立刻就能玩。</p>
+            <Link
+              to="/upload"
+              className="mt-1 inline-flex items-center gap-1 text-[12px] font-medium text-[var(--color-brand)] hover:underline"
+            >
+              <IconUpload size={13} /> 前往上传页
+            </Link>
+          </div>
+        </li>
+        <li className="flex items-start gap-3 rounded-[var(--radius-glass-md)] border border-[var(--line-1)] bg-[color-mix(in_srgb,var(--ink-1)_4%,transparent)] p-3">
+          <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-[var(--color-brand)] text-[12px] font-semibold text-white">
+            2
+          </span>
+          <div>
+            <p className="text-[13px] font-medium">批量导入</p>
+            <p className="text-[12px] text-[var(--ink-3)]">
+              把 ROM 放进项目根目录的{' '}
+              <code className="rounded bg-[color-mix(in_srgb,var(--ink-1)_12%,transparent)] px-1.5 py-0.5 font-mono text-[11px]">
+                roms/
+              </code>{' '}
+              文件夹，再运行{' '}
+              <code className="rounded bg-[color-mix(in_srgb,var(--ink-1)_12%,transparent)] px-1.5 py-0.5 font-mono text-[11px]">
+                npm run prepare:data
+              </code>{' '}
+              即可批量收录。
+            </p>
+          </div>
+        </li>
+        <li className="flex items-start gap-3 rounded-[var(--radius-glass-md)] border border-[var(--line-1)] bg-[color-mix(in_srgb,var(--ink-1)_4%,transparent)] p-3">
+          <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-[var(--color-brand)] text-[12px] font-semibold text-white">
+            3
+          </span>
+          <div>
+            <p className="text-[13px] font-medium">合法来源</p>
+            <p className="text-[12px] text-[var(--ink-3)]">
+              只添加你拥有版权的 ROM、自制游戏，或自有卡带的备份。
+            </p>
+          </div>
+        </li>
+      </ol>
     </div>
   )
 }

@@ -230,3 +230,48 @@ textarea {
   white-space: nowrap;
   border-width: 0;
 }
+
+/* ============================================================
+   封面骨架微光：图片解码完成前的一道流动高光，避免硬弹出
+   ============================================================ */
+.cover-shimmer {
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    color-mix(in srgb, white 22%, transparent) 50%,
+    transparent 80%
+  );
+  background-size: 200% 100%;
+  animation: cover-shimmer 1.4s linear infinite;
+}
+
+@keyframes cover-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cover-shimmer {
+    animation: none;
+    opacity: 0.45;
+  }
+}
+
+/* ============================================================
+   快捷键提示用的 <kbd> 胶囊（与设置页键位标签风格统一）
+   ============================================================ */
+.kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.4rem;
+  border-radius: 7px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--ink-1);
+  background: color-mix(in srgb, var(--ink-1) 12%, transparent);
+  border: 1px solid var(--line-2);
+}

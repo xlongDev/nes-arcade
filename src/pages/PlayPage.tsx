@@ -8,7 +8,9 @@ import { listSaves, deleteSave } from '@/lib/storage'
 import { toast } from '@/components/ui/Toast'
 import { GlassButton } from '@/components/ui/GlassButton'
 import { GlassPanel } from '@/components/ui/GlassPanel'
-import { IconBack, IconHeart, IconPause, IconPlay, IconReset, IconFullscreen, IconVolume, IconCamera, IconSave, IconLoad, IconClose, IconGrid } from '@/components/ui/Icons'
+import { StatusBadge } from '@/components/emulator/StatusBadge'
+import { GameTopBar, GameToolbar, ShortcutHints } from '@/components/emulator/GameHUD'
+import { IconBack, IconClose, IconGrid, IconLoad, IconSave } from '@/components/ui/Icons'
 import { cx } from '@/lib/cx'
 import { formatRelative } from '@/lib/format'
 import { useEmulator } from '@/features/emulator/useEmulator'
@@ -120,6 +122,32 @@ export function PlayPage() {
     game != null &&
     (touchPad === 'on' || (touchPad === 'auto' && typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches))
 
+  // 全局快捷键：空格暂停 / F 全屏 / Esc 关闭面板
+  // 用户若把某键绑到了 NES 按键（如把 Space 绑成 start），则以游戏输入为准，这里让路。
+  const canUseSpace = api.status === 'running' || api.status === 'paused'
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
+      if (panel) {
+        if (e.code === 'Escape') {
+          e.preventDefault()
+          setPanel('none')
+        }
+        return
+      }
+      if (e.code === 'Space' && canUseSpace && !(e.code in keymap)) {
+        e.preventDefault()
+        api.togglePause()
+      } else if (e.code === 'KeyF') {
+        e.preventDefault()
+        api.toggleFullscreen()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [panel, canUseSpace, keymap, api.togglePause, api.toggleFullscreen])
+
   // 整数倍缩放
   useEffect(() => {
     const wrap = screenRef.current
@@ -147,18 +175,17 @@ export function PlayPage() {
       <div className="stack-page grid min-h-[70vh] place-items-center">
         <div className="glass-faux flex flex-col items-center gap-4 rounded-[var(--radius-glass-lg)] px-8 py-14 text-center">
           <span className="text-[var(--ink-3)]">找不到这款游戏，它可能已被移除。</span>
-                  <Link to="/" search={HOME_SEARCH}>
-                    <GlassButton variant="primary">
-                      <IconBack size={16} />
-                      返回游戏库
-                    </GlassButton>
-                  </Link>
+          <Link to="/" search={HOME_SEARCH}>
+            <GlassButton variant="primary">
+              <IconBack size={16} />
+              返回游戏库
+            </GlassButton>
+          </Link>
         </div>
       </div>
     )
   }
 
-  const volumeLevel = muted ? 0 : volume > 0.5 ? 2 : 1
   const playing = api.status === 'running'
 
   const handleSave = async (slot: number) => {
@@ -190,40 +217,20 @@ export function PlayPage() {
       toast.success('已用当前画面更新封面')
     }
   }
+  const handleRemove = () => {
+    removeCustomGame(game.id)
+    toast.success('已移除本地 ROM')
+    void navigate({ to: '/', search: HOME_SEARCH })
+  }
 
   return (
     <div className="stack-page flex min-h-[100dvh] flex-col gap-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-4">
-      {/* 顶部控制栏 */}
-      <header className="flex items-center gap-2">
-        <Link to="/" search={HOME_SEARCH} aria-label="返回游戏库" className="shrink-0">
-          <GlassButton variant="glass" size="icon">
-            <IconBack size={18} />
-          </GlassButton>
-        </Link>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[15px] font-semibold leading-tight">{game.title}</h1>
-          <p className="truncate text-[11px] text-[var(--ink-3)]">
-            {game.isCustom ? '本地上传' : `${game.hasBattery ? '电池存档 · ' : ''}Mapper ${game.mapper}`}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => toggleFavorite(game.id)}
-          aria-label={isFavorite ? '取消收藏' : '收藏'}
-          aria-pressed={isFavorite}
-          className={cx(
-            'grid size-11 shrink-0 place-items-center rounded-[var(--radius-glass-sm)]',
-            'border border-[var(--line-1)] bg-[color-mix(in_srgb,var(--ink-1)_6%,transparent)]',
-            'transition-colors hover:bg-[color-mix(in_srgb,var(--ink-1)_10%,transparent)]',
-            isFavorite ? 'text-[var(--color-rose)]' : 'text-[var(--ink-2)]',
-          )}
-        >
-          <IconHeart size={18} filled={isFavorite} />
-        </button>
-      </header>
+      <GameTopBar game={game} isFavorite={isFavorite} onToggleFavorite={toggleFavorite} />
 
-      {/* 画面 */}
-      <div className="relative flex flex-1 items-center justify-center">
+      {/* 画面 + 状态条 */}
+      <div className="relative flex flex-1 flex-col items-center justify-center gap-3">
+        <StatusBadge status={api.status} />
+
         <GlassPanel
           radius="xl"
           sheen
@@ -261,74 +268,20 @@ export function PlayPage() {
         </GlassPanel>
       </div>
 
-      {/* HUD 工具条 */}
-      <div className="flex flex-wrap items-center justify-center gap-2">
-        <GlassButton
-          variant={playing ? 'glass' : 'primary'}
-          onClick={api.togglePause}
-          disabled={api.status === 'loading' || api.status === 'error'}
-        >
-          {playing ? <IconPause size={16} /> : <IconPlay size={16} />}
-          {playing ? '暂停' : '继续'}
-        </GlassButton>
-        <GlassButton variant="glass" size="icon" onClick={api.reset} title="重置游戏" aria-label="重置游戏">
-          <IconReset size={18} />
-        </GlassButton>
-        <GlassButton variant="glass" size="icon" onClick={api.toggleFullscreen} title="全屏" aria-label="全屏">
-          <IconFullscreen size={18} />
-        </GlassButton>
+      <GameToolbar
+        api={api}
+        playing={playing}
+        volume={volume}
+        muted={muted}
+        onVolumeChange={setVolume}
+        onToggleMute={toggleMute}
+        onCover={() => void handleCover()}
+        panelOpen={panel === 'slots'}
+        onTogglePanel={() => setPanel(panel === 'slots' ? 'none' : 'slots')}
+        onRemove={game.isCustom ? handleRemove : undefined}
+      />
 
-        {/* 音量 */}
-        <div className="glass-faux flex items-center gap-2 rounded-[var(--radius-glass-sm)] px-3 py-2">
-          <button
-            type="button"
-            onClick={toggleMute}
-            aria-label={muted ? '取消静音' : '静音'}
-            className="text-[var(--ink-2)] transition-colors hover:text-[var(--ink-1)]"
-          >
-            <IconVolume size={18} level={volumeLevel} />
-          </button>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={volume}
-            onChange={(e) => setVolume(Number(e.target.value))}
-            aria-label="音量"
-            className="h-1.5 w-24 cursor-pointer accent-[var(--color-brand)]"
-          />
-        </div>
-
-        <GlassButton variant="glass" size="icon" onClick={handleCover} title="截图当封面" aria-label="截图当封面">
-          <IconCamera size={18} />
-        </GlassButton>
-        <GlassButton
-          variant={panel === 'slots' ? 'primary' : 'glass'}
-          onClick={() => setPanel(panel === 'slots' ? 'none' : 'slots')}
-          title="存档 / 读档"
-          aria-label="存档 / 读档"
-        >
-          <IconSave size={16} />
-          <span className="hidden sm:inline">存档</span>
-        </GlassButton>
-
-        {game.isCustom && (
-          <GlassButton
-            variant="glass"
-            size="icon"
-            title="移除该上传 ROM"
-            aria-label="移除该上传 ROM"
-            onClick={() => {
-              removeCustomGame(game.id)
-              toast.success('已移除本地 ROM')
-              void navigate({ to: '/', search: HOME_SEARCH })
-            }}
-          >
-            <IconClose size={18} />
-          </GlassButton>
-        )}
-      </div>
+      <ShortcutHints />
 
       {/* 移动端虚拟手柄 */}
       {showVirtualPad && (

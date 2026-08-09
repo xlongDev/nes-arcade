@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { GlassButton } from '@/components/ui/GlassButton'
 import { GlassPanel } from '@/components/ui/GlassPanel'
+import { VolumeControl } from '@/components/ui/VolumeControl'
 import { Segmented } from '@/components/ui/Segmented'
 import { Toggle } from '@/components/ui/Toggle'
 import {
@@ -220,26 +221,12 @@ export function SettingsPage() {
       <Section title="画面与声音" icon={<IconVolume size={15} />}>
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <span className="text-[14px] text-[var(--ink-1)]">音量</span>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => prefs.toggleMute()}
-              aria-label={prefs.muted ? '取消静音' : '静音'}
-              className="text-[var(--ink-2)]"
-            >
-              <IconVolume size={18} level={prefs.muted ? 0 : prefs.volume > 0.5 ? 2 : 1} />
-            </button>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={prefs.volume}
-              onChange={(e) => prefs.setVolume(Number(e.target.value))}
-              aria-label="音量"
-              className="h-1.5 w-32 cursor-pointer accent-[var(--color-brand)]"
-            />
-          </div>
+          <VolumeControl
+            volume={prefs.volume}
+            muted={prefs.muted}
+            onVolumeChange={(v) => prefs.setVolume(v)}
+            onToggleMute={() => prefs.toggleMute()}
+          />
         </div>
         <div className="flex items-center justify-between px-4 py-3">
           <span className="text-[14px] text-[var(--ink-1)]">画面滤镜</span>
