@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { usePrefs, resolveTheme } from '@/stores/prefs'
 
 /**
@@ -28,6 +28,21 @@ export function useThemeSync() {
   useEffect(() => {
     document.documentElement.dataset.glass = reduceGlass ? 'off' : 'on'
   }, [reduceGlass])
+}
+
+/**
+ * 主题切换的共享逻辑：返回当前是否暗色 + 一个带 View Transition 的 toggle。
+ * 顶栏（TopBar）与游戏页（GameTopBar）共用，避免两边各写一遍。
+ */
+export function useThemeToggle() {
+  const themeMode = usePrefs((s) => s.themeMode)
+  const setThemeMode = usePrefs((s) => s.setThemeMode)
+  const isDark = resolveTheme(themeMode) === 'dark'
+  const toggle = useCallback(
+    () => switchThemeWithTransition(() => setThemeMode(isDark ? 'light' : 'dark')),
+    [isDark, setThemeMode],
+  )
+  return { isDark, toggle }
 }
 
 /**

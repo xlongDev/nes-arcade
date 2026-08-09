@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { GlassButton } from '@/components/ui/GlassButton'
 import { IconSearch, IconClose, IconUpload, IconSettings, IconSun, IconMoon } from '@/components/ui/Icons'
-import { usePrefs, resolveTheme } from '@/stores/prefs'
-import { switchThemeWithTransition } from '@/lib/useThemeSync'
+import { useThemeToggle } from '@/lib/useThemeSync'
 import { usePointerGlow } from '@/lib/pointer'
 import { cx } from '@/lib/cx'
 import type { LibrarySearch } from '@/router'
@@ -14,9 +13,7 @@ export function TopBar() {
   const inputRef = useRef<HTMLInputElement>(null)
   usePointerGlow(barRef)
 
-  const themeMode = usePrefs((s) => s.themeMode)
-  const setThemeMode = usePrefs((s) => s.setThemeMode)
-  const isDark = resolveTheme(themeMode) === 'dark'
+  const { isDark, toggle } = useThemeToggle()
 
   const urlQuery = useRouterState({
     select: (s) => (s.location.pathname === '/' ? ((s.location.search as { q?: string }).q ?? '') : ''),
@@ -70,17 +67,20 @@ export function TopBar() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const toggleTheme = () => {
-    switchThemeWithTransition(() => setThemeMode(isDark ? 'light' : 'dark'))
-  }
+  const toggleTheme = toggle
 
   return (
     <header
       ref={barRef}
       className={cx(
-        'safe-t sticky top-0 z-50 w-full',
+        'sticky top-0 z-50 w-full',
         'transition-[padding] duration-500 [transition-timing-function:var(--ease-glass)]',
-        scrolled ? 'pt-2 pb-2' : 'pt-4 pb-3',
+        // 安全区(env)直接并进 padding-top，避免 Tailwind 工具类被 index.css 里
+        // 未分层的 .safe-t 裸规则覆盖（那样桌面端 padding-top 会变成 0，玻璃栏贴边）。
+        // 静止时留 20px 呼吸感，滚动后收紧到 12px。
+        scrolled
+          ? 'pt-[calc(env(safe-area-inset-top)_+_12px)] pb-2'
+          : 'pt-[calc(env(safe-area-inset-top)_+_20px)] pb-3',
       )}
     >
       <div className="stack-page">
@@ -126,10 +126,6 @@ export function TopBar() {
             <label htmlFor="global-search" className="sr-only">
               搜索游戏（支持中文、拼音、英文名）
             </label>
-            <IconSearch
-              size={17}
-              className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-[var(--ink-4)]"
-            />
             <input
               id="global-search"
               ref={inputRef}
@@ -140,13 +136,28 @@ export function TopBar() {
               autoComplete="off"
               spellCheck={false}
               className={cx(
-                'h-10 w-full rounded-[var(--radius-glass-sm)] pr-20 pl-10',
+                'peer h-10 w-full rounded-[var(--radius-glass-sm)] pr-20 pl-10',
                 'bg-[color-mix(in_srgb,var(--ink-1)_6%,transparent)]',
                 'border border-[var(--line-1)] text-[14px] placeholder:text-[var(--ink-4)]',
                 'transition-[background,border-color,box-shadow] duration-300',
-                'focus:border-[var(--line-3)] focus:bg-[color-mix(in_srgb,var(--ink-1)_9%,transparent)]',
-                'focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-brand)_16%,transparent)] focus:outline-none',
+                '[transition-timing-function:var(--ease-glass)]',
+                // 自定义焦点环替代全局 outline。原来是 16% 的 brand，
+                // 在玻璃底上基本看不见 —— 提到 34% 并补一圈实色边，
+                // 这样键盘用户能一眼定位到焦点在哪。
+                'focus:border-[color-mix(in_srgb,var(--color-brand)_70%,transparent)]',
+                'focus:bg-[color-mix(in_srgb,var(--ink-1)_10%,transparent)]',
+                'focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-brand)_34%,transparent)]',
+                'focus:outline-none',
                 '[&::-webkit-search-cancel-button]:hidden',
+              )}
+            />
+            {/* 图标放 input 之后，才能用 peer-focus 跟着变色 */}
+            <IconSearch
+              size={17}
+              className={cx(
+                'pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2',
+                'text-[var(--ink-4)] transition-colors duration-300',
+                'peer-focus:text-[var(--color-brand)]',
               )}
             />
             {draft ? (
