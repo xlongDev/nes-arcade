@@ -117,7 +117,10 @@ export const VolumeControl = memo(function VolumeControl({
         >
           <IconVolume size={18} level={level} />
         </button>
-        <VolumeSlider volume={volume} onVolumeChange={onVolumeChange} />
+        {/* 设置页滑块需要固定宽度：外层 flex 容器无固定宽，滑块 w-full 会被压到 0 */}
+        <div className="w-[140px]">
+          <VolumeSlider volume={volume} onVolumeChange={onVolumeChange} />
+        </div>
       </div>
     )
   }
