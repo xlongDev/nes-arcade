@@ -10,6 +10,7 @@ import { IconUpload, IconPlay, IconTrash, IconGamepad, IconSparkle } from '@/com
 import { cx } from '@/lib/cx'
 import { formatBytes, formatRelative } from '@/lib/format'
 import { coverPalette, coverGlyph } from '@/lib/cover'
+import { classifyRom } from '@/lib/romClassifier'
 import type { CustomGame } from '@/types/game'
 
 interface ParsedRom {
@@ -118,6 +119,7 @@ export function UploadPage() {
           bytes: file.size,
           addedAt: Date.now(),
           mapper: parsed.mapper,
+          category: classifyRom(file.name, buf),
         }
         addCustomGame(meta)
         toast.success('已加入本地游戏库')

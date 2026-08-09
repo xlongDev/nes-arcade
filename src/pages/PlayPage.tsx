@@ -67,7 +67,7 @@ export function PlayPage() {
         hasTrainer: false,
         mirroring: 'horizontal',
         format: 'iNES',
-        category: 'action',
+        category: custom.category ?? 'action',
         players: 1,
         desc: '本地上传的 ROM',
         alias: [],

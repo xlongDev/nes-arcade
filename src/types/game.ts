@@ -65,6 +65,8 @@ export interface CustomGame {
   bytes: number
   addedAt: number
   mapper: number
+  /** 上传时按 ROM 的 CRC32 反查 libretro 题材库得到的分类；旧数据可能缺省，消费处兜底 action */
+  category: Category
 }
 
 /** NES 手柄的逻辑按键 */
