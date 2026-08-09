@@ -11,7 +11,7 @@ import { cx } from '@/lib/cx'
 import { CATEGORIES } from '@/data/games.meta'
 import { CATEGORY_COUNTS, GAMES, getGame, TOTAL_BYTES } from '@/data/games'
 import { formatBytes } from '@/lib/format'
-import { IconHeart, IconClock, IconSparkle, IconSearch, IconUpload } from '@/components/ui/Icons'
+import { IconHeart, IconClock, IconSparkle, IconSearch, IconUpload, IconGamepad } from '@/components/ui/Icons'
 import type { Category, CategoryFilter } from '@/types/game'
 import type { LibrarySearch, SortKey } from '@/router'
 
@@ -135,22 +135,33 @@ export function LibraryPage() {
   return (
     <div className="stack-page pb-28">
       {/* Hero */}
-      <header className="pt-8 pb-6 sm:pt-12">
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-          游戏库
-          <span className="ml-2 align-middle text-base font-normal text-[var(--ink-3)]">
-            {totalCount} 款 · {formatBytes(totalBytes)}
-          </span>
-        </h1>
-        <p className="mt-2 max-w-xl text-[14px] text-[var(--ink-3)]">
-          点开即玩，进度与存档都留在本地。支持中文 / 拼音 / 英文名搜索，右上角还能上传自己的卡带。
-        </p>
+      <header className="float-in relative flex items-start gap-4 pb-7 pt-8 sm:gap-5 sm:pt-12">
+        <div
+          aria-hidden="true"
+          className="grid size-12 shrink-0 place-items-center rounded-[var(--radius-glass-sm)] border border-[var(--line-1)] bg-[color-mix(in_srgb,var(--color-brand)_12%,transparent)] text-[var(--color-brand)] shadow-[var(--bevel-soft)] sm:size-14"
+        >
+          <PixelConsole className="size-7 sm:size-8" />
+        </div>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">游戏库</h1>
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line-1)] bg-[color-mix(in_srgb,var(--ink-1)_6%,transparent)] px-3 py-1 text-[13px] text-[var(--ink-2)]">
+              <IconGamepad size={14} className="text-[var(--ink-3)]" />
+              <span className="tnum">{totalCount} 款</span>
+              <span className="text-[var(--ink-4)]">·</span>
+              <span className="tnum">{formatBytes(totalBytes)}</span>
+            </div>
+          </div>
+          <p className="mt-3 max-w-xl text-[13.5px] leading-relaxed text-[var(--ink-4)]">
+            点开即玩，进度与存档都留在本机 · 支持中 / 拼音 / 英文搜索
+          </p>
+        </div>
       </header>
 
       {/* 工具栏：分类筛选 + 排序 + 收藏 */}
-      <div className="sticky top-[calc(env(safe-area-inset-top)_+_92px)] z-30 -mx-1 mb-7 flex flex-col gap-3 rounded-[var(--radius-glass-lg)] px-1 py-2">
+      <div className="sticky top-[calc(env(safe-area-inset-top)_+_92px)] z-30 -mx-1 mb-7 flex flex-col gap-3 rounded-[var(--radius-glass-lg)] border-b border-[var(--line-1)] bg-[color-mix(in_srgb,var(--bg-base)_66%,transparent)] px-1 py-2 backdrop-blur-xl">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0">
             <CategoryFilterChips
               label="游戏分类"
               value={search.cat}
@@ -159,36 +170,38 @@ export function LibraryPage() {
             />
           </div>
 
-          {/* 排序：大屏并入同一行右侧；移动端单独放第二行（见下方） */}
-          {!search.fav && (
-            <div className="hidden items-center gap-2 lg:flex">
-              <span className="text-[12px] text-[var(--ink-4)]">排序</span>
-              <Segmented
-                label="排序方式"
-                size="sm"
-                value={search.sort}
-                options={SORT_OPTIONS}
-                onChange={(v) => setSearch({ sort: v })}
-              />
-            </div>
-          )}
-
-          <GlassButton
-            variant="glass"
-            size="md"
-            active={search.fav}
-            onClick={() => setSearch({ fav: !search.fav })}
-            aria-label="只看收藏"
-            title="只看收藏"
-            className={cx(
-              'transition-[color,background-color,border-color] duration-300 [transition-timing-function:var(--ease-glass)]',
-              search.fav &&
-                'border-[color-mix(in_srgb,var(--color-rose)_38%,transparent)] bg-[color-mix(in_srgb,var(--color-rose)_12%,transparent)] text-[var(--color-rose)]',
+          {/* 排序 + 收藏归到右侧操作组；大屏并入同一行，移动端排序单独放第二行 */}
+          <div className="ml-auto flex items-center gap-2">
+            {!search.fav && (
+              <div className="hidden items-center gap-2 lg:flex">
+                <span className="text-[12px] text-[var(--ink-4)]">排序</span>
+                <Segmented
+                  label="排序方式"
+                  size="sm"
+                  value={search.sort}
+                  options={SORT_OPTIONS}
+                  onChange={(v) => setSearch({ sort: v })}
+                />
+              </div>
             )}
-          >
-            <IconHeart size={16} filled={search.fav} />
-            <span className="hidden sm:inline">收藏</span>
-          </GlassButton>
+
+            <GlassButton
+              variant="glass"
+              size="md"
+              active={search.fav}
+              onClick={() => setSearch({ fav: !search.fav })}
+              aria-label="只看收藏"
+              title="只看收藏"
+              className={cx(
+                'transition-[color,background-color,border-color] duration-300 [transition-timing-function:var(--ease-glass)]',
+                search.fav &&
+                  'border-[color-mix(in_srgb,var(--color-rose)_38%,transparent)] bg-[color-mix(in_srgb,var(--color-rose)_12%,transparent)] text-[var(--color-rose)]',
+              )}
+            >
+              <IconHeart size={16} filled={search.fav} />
+              <span className="hidden sm:inline">收藏</span>
+            </GlassButton>
+          </div>
         </div>
 
         {!search.fav && (
@@ -251,14 +264,39 @@ function Rail({
   children: React.ReactNode
 }) {
   return (
-    <section className="mb-8">
-      <h2 className="mb-3 flex items-center gap-2 px-1 text-[13px] font-semibold text-[var(--ink-2)]">
-        <span aria-hidden className="h-4 w-[3px] shrink-0 rounded-full bg-[var(--color-brand)]" />
-        <span aria-hidden className="text-[var(--ink-3)]">{icon}</span>
+    <section className="mb-10">
+      <h2 className="mb-3 flex items-center gap-2 px-1 text-[12.5px] font-semibold text-[var(--ink-4)]">
+        <span aria-hidden className="text-[var(--ink-3)]">
+          {icon}
+        </span>
         {title}
       </h2>
       <div className="rail">{children}</div>
     </section>
+  )
+}
+
+/**
+ * 像素风 NES 手柄图标，作标题区视觉锚点。
+ * crispEdges 保硬边，不喧宾夺主（颜色走品牌色、由父级控透明度）。
+ */
+function PixelConsole({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 16"
+      className={className}
+      shapeRendering="crispEdges"
+      fill="none"
+      aria-hidden="true"
+    >
+      <rect x="1.5" y="3.5" width="21" height="9" rx="2" stroke="currentColor" strokeWidth="1.4" />
+      {/* 十字方向键 */}
+      <rect x="4" y="6.5" width="2" height="4" fill="currentColor" />
+      <rect x="3" y="7.5" width="4" height="2" fill="currentColor" />
+      {/* A / B 按钮（像素方块） */}
+      <rect x="16" y="6" width="2" height="2" fill="currentColor" />
+      <rect x="19" y="8" width="2" height="2" fill="currentColor" />
+    </svg>
   )
 }
 

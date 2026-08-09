@@ -74,8 +74,8 @@ export function CategoryFilter({
               'transition-[color,background,box-shadow,transform] duration-300',
               '[transition-timing-function:var(--ease-glass)] active:scale-[0.96]',
               active
-                ? 'bg-[color-mix(in_srgb,var(--color-brand)_22%,transparent)] text-[var(--ink-1)] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-brand)_55%,transparent)]'
-                : 'bg-[color-mix(in_srgb,var(--ink-1)_5%,transparent)] text-[var(--ink-3)] hover:bg-[color-mix(in_srgb,var(--ink-1)_9%,transparent)] hover:text-[var(--ink-2)]',
+                ? 'border border-[var(--line-1)] bg-[color-mix(in_srgb,var(--color-brand)_26%,transparent)] text-[var(--ink-1)] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-brand)_55%,transparent)]'
+                : 'border border-[var(--line-1)] bg-[var(--chip-bg)] text-[var(--ink-3)] hover:bg-[var(--chip-bg-hover)] hover:text-[var(--ink-2)]',
             )}
           >
             {o.icon && (
