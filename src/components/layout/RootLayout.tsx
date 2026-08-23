@@ -1,13 +1,21 @@
+import { useEffect } from 'react'
 import { Outlet, useRouterState } from '@tanstack/react-router'
 import { motion } from 'motion/react'
 import { Aurora } from './Aurora'
 import { TopBar } from './TopBar'
+import { Footer } from './Footer'
 import { useThemeSync } from '@/lib/useThemeSync'
+import { autoScanDirs } from '@/lib/dirSources'
 import { ToastHost } from '@/components/ui/Toast'
 import { ConfirmHost } from '@/components/ui/ConfirmDialog'
 
 export function RootLayout() {
   useThemeSync()
+
+  // 启动后自动扫描已添加的游戏目录，把新增 ROM 收录进本地库（幂等）
+  useEffect(() => {
+    void autoScanDirs()
+  }, [])
 
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const inGame = pathname.startsWith('/play/')
@@ -35,6 +43,8 @@ export function RootLayout() {
           </motion.div>
         )}
       </main>
+      {/* 游戏页沉浸式体验不需要底部栏 */}
+      {!inGame && <Footer />}
       <ToastHost />
       <ConfirmHost />
     </>

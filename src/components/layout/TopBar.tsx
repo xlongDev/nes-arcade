@@ -1,10 +1,58 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { GlassButton } from '@/components/ui/GlassButton'
-import { IconUpload, IconSettings, IconSun, IconMoon } from '@/components/ui/Icons'
+import { IconUpload, IconSettings, IconSun, IconMoon, IconGithub } from '@/components/ui/Icons'
 import { useThemeToggle } from '@/lib/useThemeSync'
 import { usePointerGlow } from '@/lib/pointer'
 import { cx } from '@/lib/cx'
+import type { AnchorHTMLAttributes, ReactNode } from 'react'
+
+/**
+ * 玻璃图标链接：与 GlassButton variant="ghost" size="icon" 视觉上完全一致，
+ * 但渲染为 <a>，避免交互元素嵌套（Link > button 不合法），也适合外链。
+ */
+function GlassIconLink({
+  href,
+  to,
+  children,
+  className,
+  external,
+  ...rest
+}: {
+  href?: string
+  to?: string
+  children: ReactNode
+  className?: string
+  external?: boolean
+} & AnchorHTMLAttributes<HTMLAnchorElement>) {
+  const classes = cx(
+    'inline-flex size-11 select-none items-center justify-center rounded-[var(--radius-glass-sm)]',
+    'border border-transparent bg-transparent text-[var(--ink-2)]',
+    'transition-[transform,background,color] duration-300',
+    '[transition-timing-function:var(--ease-glass)]',
+    'hover:bg-[color-mix(in_srgb,var(--ink-1)_8%,transparent)] hover:text-[var(--ink-1)]',
+    'active:scale-[0.965]',
+    className,
+  )
+  if (to) {
+    return (
+      <Link to={to} className={classes} {...rest}>
+        {children}
+      </Link>
+    )
+  }
+  return (
+    <a
+      href={href}
+      className={classes}
+      target={external ? '_blank' : undefined}
+      rel={external ? 'noopener noreferrer' : undefined}
+      {...rest}
+    >
+      {children}
+    </a>
+  )
+}
 
 export function TopBar() {
   const barRef = useRef<HTMLElement>(null)
@@ -19,6 +67,17 @@ export function TopBar() {
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
+
+  // 把 TopBar 当前占位高度写到 :root 上,让下方吸顶工具栏跟着收缩,
+  // 避免硬编码 92px 与收缩后的实际高度不同步
+  // (静态 20+64+12=96,收缩 12+56+8=76,包含 safe-area 由 TopBar 自己撑开)
+  useEffect(() => {
+    const value = scrolled ? '76px' : '96px'
+    document.documentElement.style.setProperty('--topbar-h', value)
+    return () => {
+      document.documentElement.style.removeProperty('--topbar-h')
+    }
+  }, [scrolled])
 
   return (
     <header
@@ -38,12 +97,13 @@ export function TopBar() {
             'flex items-center gap-2 sm:gap-3',
             'rounded-[var(--radius-glass-lg)] px-3 sm:px-4',
             'transition-[height] duration-500 [transition-timing-function:var(--ease-glass)]',
+            'border-b-0 shadow-[var(--drop-lg)] [transform:translateZ(0)]',
             scrolled ? 'h-14' : 'h-16',
           )}
         >
           <Link
             to="/"
-            search={{ q: '', cat: 'all', sort: 'title', fav: false }}
+            search={{ q: '', cat: 'all', sort: 'title', dir: 'asc', fav: false, recent: false }}
             className="group flex shrink-0 items-center gap-2.5 rounded-[var(--radius-glass-sm)] px-1.5 py-1"
             aria-label="返回游戏库首页"
           >
@@ -79,16 +139,20 @@ export function TopBar() {
             >
               {isDark ? <IconSun size={18} /> : <IconMoon size={18} />}
             </GlassButton>
-            <Link to="/upload" aria-label="上传 ROM" title="上传 ROM">
-              <GlassButton variant="ghost" size="icon" aria-label="上传 ROM">
-                <IconUpload size={18} />
-              </GlassButton>
-            </Link>
-            <Link to="/settings" aria-label="设置" title="设置">
-              <GlassButton variant="ghost" size="icon" aria-label="设置">
-                <IconSettings size={18} />
-              </GlassButton>
-            </Link>
+            <GlassIconLink to="/upload" aria-label="上传 ROM" title="上传 ROM">
+              <IconUpload size={18} />
+            </GlassIconLink>
+            <GlassIconLink to="/settings" aria-label="设置" title="设置">
+              <IconSettings size={18} />
+            </GlassIconLink>
+            <GlassIconLink
+              href="https://github.com/xlongDev/nes-arcade"
+              external
+              aria-label="在 GitHub 查看项目"
+              title="GitHub"
+            >
+              <IconGithub size={18} />
+            </GlassIconLink>
           </div>
         </div>
       </div>
