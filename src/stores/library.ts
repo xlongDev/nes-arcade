@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { classifyByTitle } from '@/lib/romTitleClassifier'
+import { deleteCustomRom } from '@/lib/storage'
 import type { CustomGame, RecentEntry } from '@/types/game'
 
 const MAX_RECENTS = 24
@@ -19,6 +20,10 @@ interface LibraryState {
   clearRecents: () => void
   addCustomGame: (g: CustomGame) => void
   removeCustomGame: (id: string) => void
+  /** 批量添加（来自多选/目录扫描），按 id 与 sourceKey 去重，避免重复收录 */
+  addCustomGames: (games: CustomGame[]) => void
+  /** 删除某个来源目录下的全部游戏（连带 ROM 二进制、收藏、最近、封面） */
+  removeDirGames: (dirId: string) => void
   setCover: (id: string, dataUrl: string) => void
   clearCover: (id: string) => void
 }
@@ -58,6 +63,19 @@ export const useLibrary = create<LibraryState>()(
       addCustomGame: (g) =>
         set((s) => ({ customGames: [g, ...s.customGames.filter((x) => x.id !== g.id)] })),
 
+      addCustomGames: (games) =>
+        set((s) => {
+          const existingIds = new Set(s.customGames.map((g) => g.id))
+          const existingKeys = new Set(
+            s.customGames.map((g) => g.sourceKey).filter((k): k is string => Boolean(k)),
+          )
+          const toAdd = games.filter(
+            (g) => !existingIds.has(g.id) && !(g.sourceKey && existingKeys.has(g.sourceKey)),
+          )
+          if (!toAdd.length) return s
+          return { customGames: [...toAdd, ...s.customGames] }
+        }),
+
       removeCustomGame: (id) =>
         set((s) => {
           const covers = { ...s.coverOverrides }
@@ -66,6 +84,24 @@ export const useLibrary = create<LibraryState>()(
             customGames: s.customGames.filter((x) => x.id !== id),
             favorites: s.favorites.filter((x) => x !== id),
             recents: s.recents.filter((r) => r.gameId !== id),
+            coverOverrides: covers,
+          }
+        }),
+
+      removeDirGames: (dirId) =>
+        set((s) => {
+          const removedIds = new Set(
+            s.customGames.filter((g) => g.sourceDirId === dirId).map((g) => g.id),
+          )
+          if (!removedIds.size) return s
+          // ROM 二进制在 IndexedDB，异步清；store 先撤元数据，避免界面闪现已删条目
+          removedIds.forEach((id) => void deleteCustomRom(id))
+          const covers = { ...s.coverOverrides }
+          removedIds.forEach((id) => delete covers[id])
+          return {
+            customGames: s.customGames.filter((g) => g.sourceDirId !== dirId),
+            favorites: s.favorites.filter((x) => !removedIds.has(x)),
+            recents: s.recents.filter((r) => !removedIds.has(r.gameId)),
             coverOverrides: covers,
           }
         }),

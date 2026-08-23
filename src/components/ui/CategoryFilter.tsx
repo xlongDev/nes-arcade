@@ -16,6 +16,11 @@ interface CategoryFilterProps {
   options: readonly CategoryFilterOption[]
   onChange: (value: string) => void
   label: string
+  /**
+   * 关联的网格 panel id,挂到 role=tablist 的 aria-controls 上,
+   * 让屏幕阅读器知道 tab 切换影响哪块内容。
+   */
+  ariaControls?: string
   className?: string
 }
 
@@ -30,6 +35,7 @@ export function CategoryFilter({
   options,
   onChange,
   label,
+  ariaControls,
   className,
 }: CategoryFilterProps) {
   const listRef = useRef<HTMLDivElement>(null)
@@ -72,6 +78,7 @@ export function CategoryFilter({
       ref={listRef}
       role="tablist"
       aria-label={label}
+      aria-controls={ariaControls}
       onKeyDown={onKeyDown}
       className={cx(
         'glass-faux glass-refract relative inline-flex items-center gap-1 overflow-x-auto p-1',
@@ -111,7 +118,7 @@ export function CategoryFilter({
               'h-9 px-3 text-[13px] font-medium whitespace-nowrap',
               'transition-[color,transform] duration-300 [transition-timing-function:var(--ease-glass)]',
               'active:scale-[0.96] active:[transition-timing-function:var(--ease-spring)]',
-              active ? 'text-[var(--ink-1)]' : 'text-[var(--ink-3)] hover:text-[var(--ink-2)]',
+              active ? 'text-[var(--ink-1)]' : 'text-[var(--ink-2)] hover:text-[var(--ink-1)]',
             )}
           >
             {o.icon && (
@@ -127,6 +134,7 @@ export function CategoryFilter({
               <span
                 className={cx(
                   'tnum rounded-full px-1.5 py-px text-[10px] leading-[1.5] transition-colors',
+                  active ? 'font-semibold' : 'font-medium',
                   active
                     ? 'bg-[color-mix(in_srgb,var(--color-brand)_34%,transparent)] text-[var(--ink-1)]'
                     : 'bg-[color-mix(in_srgb,var(--ink-1)_9%,transparent)] text-[var(--ink-4)]',

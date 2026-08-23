@@ -26,11 +26,18 @@ const CATS: CategoryFilter[] = [
 export type SortKey = 'title' | 'year' | 'size' | 'recent'
 const SORTS: SortKey[] = ['title', 'year', 'size', 'recent']
 
+export type SortDir = 'asc' | 'desc'
+const DIRS: SortDir[] = ['asc', 'desc']
+
 export interface LibrarySearch {
   q: string
   cat: CategoryFilter
   sort: SortKey
+  /** 排序方向;升降序可切,默认 asc */
+  dir: SortDir
   fav: boolean
+  /** 只看最近游玩(最近 N 款);与 fav 互斥,默认 false */
+  recent: boolean
 }
 
 const rootRoute = createRootRoute({
@@ -49,11 +56,14 @@ const indexRoute = createRoute({
   validateSearch: (raw: Record<string, unknown>): LibrarySearch => {
     const cat = String(raw.cat ?? 'all') as CategoryFilter
     const sort = String(raw.sort ?? 'title') as SortKey
+    const dir = String(raw.dir ?? 'asc') as SortDir
     return {
       q: typeof raw.q === 'string' ? raw.q.slice(0, 60) : '',
       cat: CATS.includes(cat) ? cat : 'all',
       sort: SORTS.includes(sort) ? sort : 'title',
+      dir: DIRS.includes(dir) ? dir : 'asc',
       fav: raw.fav === true || raw.fav === 'true',
+      recent: raw.recent === true || raw.recent === 'true',
     }
   },
 })

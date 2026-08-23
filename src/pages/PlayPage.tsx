@@ -23,7 +23,7 @@ import { VideoFilterOverlay } from '@/features/emulator/VideoFilterOverlay'
 
 const SLOT_COUNT = 5
 
-const HOME_SEARCH = { q: '', cat: 'all' as const, sort: 'title' as const, fav: false } as const
+const HOME_SEARCH = { q: '', cat: 'all' as const, sort: 'title' as const, dir: 'asc' as const, fav: false, recent: false } as const
 
 export function PlayPage() {
   const { gameId } = useParams({ from: '/play/$gameId' })

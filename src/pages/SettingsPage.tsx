@@ -215,7 +215,7 @@ export function SettingsPage() {
   return (
     <div className="stack-page max-w-2xl pb-24 pt-4">
       <header className="mb-7 flex items-center gap-3">
-        <Link to="/" search={{ q: '', cat: 'all', sort: 'title', fav: false }} aria-label="返回" className="shrink-0">
+        <Link to="/" search={{ q: '', cat: 'all', sort: 'title', dir: 'asc', fav: false, recent: false }} aria-label="返回" className="shrink-0">
           <GlassButton variant="glass" size="icon">
             <IconBack size={18} />
           </GlassButton>

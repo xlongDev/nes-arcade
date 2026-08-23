@@ -1,19 +1,16 @@
 import { useMemo } from 'react'
-import Fuse from 'fuse.js'
+import Fuse, { type IFuseOptions } from 'fuse.js'
 import type { Game } from '@/types/game'
-import type { LibrarySearch, SortKey } from '@/router'
+import type { LibrarySearch, SortDir, SortKey } from '@/router'
 import { GAMES } from '@/data/games'
 import { useLibrary } from '@/stores/library'
 
 /**
- * 两段式搜索：
- *   1. 子串命中（标题 / 拼音全拼 / 拼音首字母 / 英文别名）—— 覆盖 95% 的输入，零误差
- *   2. Fuse 模糊兜底 —— 只在第一段没结果时启用，容忍拼写错误
- *
- * 为什么不直接上 Fuse：模糊匹配对「魂斗罗」这种精确输入反而会带出一堆噪音。
- * 先精确后模糊，结果的可预期性好得多。
+ * Fuse 配置。
+ * keys 加权让标题 > 拼音 ≈ 首字母 > 别名 > 描述,与两段式(精确子串 + 模糊)并存;
+ * threshold 0.36 容许 1-2 字拼写错误,再大就开始噪音了。
  */
-const fuse = new Fuse(GAMES, {
+const FUSE_OPTS: IFuseOptions<Game> = {
   keys: [
     { name: 'title', weight: 3 },
     { name: 'pinyin', weight: 2 },
@@ -24,21 +21,32 @@ const fuse = new Fuse(GAMES, {
   threshold: 0.36,
   ignoreLocation: true,
   minMatchCharLength: 2,
-})
+}
 
-function sortGames(list: Game[], sort: SortKey, recentOrder: Map<string, number>): Game[] {
+function sortGames(list: Game[], sort: SortKey, dir: SortDir, recentOrder: Map<string, number>): Game[] {
   const out = [...list]
+  // 每个 sort 内部的「自然方向」是固定的(例:year 习惯升序、size 习惯降序),
+  // dir=desc 时取反,这样升降序按钮按下能切两套方向,而不是只能切正反向
+  const sign = dir === 'desc' ? -1 : 1
   switch (sort) {
-    case 'year':
-      // 没有年份的排在最后，而不是当成 0 顶到最前
-      return out.sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999) || a.title.localeCompare(b.title, 'zh-Hans-CN'))
+    case 'year': {
+      // 没有年份的永远排末尾,无论升降
+      return out.sort((a, b) => {
+        const ya = a.year ?? 9999
+        const yb = b.year ?? 9999
+        if (ya !== yb) return (ya - yb) * sign
+        // 升降序相同时,用名称做兜底保持稳定,避免排序抖动
+        const t = a.title.localeCompare(b.title, 'zh-Hans-CN') * sign
+        return t === 0 ? ya - yb : t
+      })
+    }
     case 'size':
-      return out.sort((a, b) => b.bytes - a.bytes)
+      return out.sort((a, b) => (b.bytes - a.bytes) * sign)
     case 'recent':
-      return out.sort((a, b) => (recentOrder.get(b.id) ?? 0) - (recentOrder.get(a.id) ?? 0))
+      return out.sort((a, b) => ((recentOrder.get(b.id) ?? 0) - (recentOrder.get(a.id) ?? 0)) * sign)
     case 'title':
     default:
-      return out.sort((a, b) => a.title.localeCompare(b.title, 'zh-Hans-CN'))
+      return out.sort((a, b) => a.title.localeCompare(b.title, 'zh-Hans-CN') * sign)
   }
 }
 
@@ -50,6 +58,10 @@ export function useGameSearch(search: LibrarySearch, extraGames: Game[] = []) {
     () => (extraGames.length ? [...extraGames, ...GAMES] : GAMES),
     [extraGames],
   )
+
+  // Fuse 实例跟 pool 走 —— extraGames 也能进模糊索引;
+  // 自定义 ROM 没拼音 / 别名,主要靠 title + desc(为空)兜底,不会拖噪音
+  const fuse = useMemo(() => new Fuse(pool, FUSE_OPTS), [pool])
 
   const recentOrder = useMemo(
     () => new Map(recents.map((r) => [r.gameId, r.playedAt])),
@@ -67,11 +79,12 @@ export function useGameSearch(search: LibrarySearch, extraGames: Game[] = []) {
 
     if (search.cat !== 'all') list = list.filter((g) => g.category === search.cat)
     if (search.fav) list = list.filter((g) => favorites.includes(g.id))
+    if (search.recent) list = list.filter((g) => recentOrder.has(g.id))
 
-    // 搜索时按相关度（Fuse 顺序 / 命中位置）排，不要被字母序打乱
-    if (q && search.sort === 'title') {
+    // 搜索时按相关度(命中位置)排,不要被字母序打乱 —— 但 sortGames 仍按 dir 翻转
+    if (q && search.sort === 'title' && search.dir === 'asc') {
       return [...list].sort((a, b) => a.haystack.indexOf(q) - b.haystack.indexOf(q))
     }
-    return sortGames(list, search.sort, recentOrder)
-  }, [pool, search.q, search.cat, search.fav, search.sort, favorites, recentOrder])
+    return sortGames(list, search.sort, search.dir, recentOrder)
+  }, [pool, fuse, search.q, search.cat, search.fav, search.recent, search.sort, search.dir, favorites, recentOrder])
 }

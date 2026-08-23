@@ -67,6 +67,15 @@ export interface CustomGame {
   mapper: number
   /** 上传时按 ROM 的 CRC32 反查 libretro 题材库得到的分类；旧数据可能缺省，消费处兜底 action */
   category: Category
+  /** 来自「目录自动扫描」时，记录来源目录 id；普通上传为 undefined */
+  sourceDirId?: string
+  /**
+   * 去重键，保证重复导入/重新扫描时不会重复收录：
+   * 上传 = `upload::文件名::字节数`；目录 = `dir::目录id::相对路径::字节数`
+   */
+  sourceKey?: string
+  /** 来源文件夹名，仅用于列表展示 */
+  dirName?: string
 }
 
 /** NES 手柄的逻辑按键 */

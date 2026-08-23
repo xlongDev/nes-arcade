@@ -2,8 +2,10 @@ import { memo, useCallback, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import type { Game } from '@/types/game'
 import { GameCover } from './GameCover'
+import { CardQuickMenu } from './CardQuickMenu'
 import { IconHeart, IconPlay } from '@/components/ui/Icons'
 import { useLibrary } from '@/stores/library'
+import { useLongPress } from '@/lib/useLongPress'
 import { cx } from '@/lib/cx'
 import { CATEGORIES } from '@/data/games.meta'
 
@@ -23,7 +25,11 @@ interface GameCardProps {
   eager?: boolean
 }
 
-export const GameCard = memo(function GameCard({ game, index = 0, eager = false }: GameCardProps) {
+export const GameCard = memo(function GameCard({
+  game,
+  index = 0,
+  eager = false,
+}: GameCardProps) {
   const favorite = useLibrary((s) => s.favorites.includes(game.id))
   const override = useLibrary((s) => s.coverOverrides[game.id])
   const toggleFavorite = useLibrary((s) => s.toggleFavorite)
@@ -43,21 +49,57 @@ export const GameCard = memo(function GameCard({ game, index = 0, eager = false 
     [game.id, toggleFavorite, favorite],
   )
 
+  // 长按弹快速菜单:移动端主入口。鼠标右键作为桌面端的 a11y 备份路径同等触发。
+  const [menu, setMenu] = useState<{
+    open: boolean
+    anchor: { x: number; y: number } | null
+  }>({ open: false, anchor: null })
+  const openMenu = useCallback(
+    (x: number, y: number) => setMenu({ open: true, anchor: { x, y } }),
+    [],
+  )
+  const closeMenu = useCallback(
+    () => setMenu((s) => ({ open: false, anchor: s.anchor })),
+    [],
+  )
+  const longPress = useLongPress({
+    onLongPress: (origin) => openMenu(origin.x, origin.y),
+  })
+  const onContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      openMenu(e.clientX, e.clientY)
+    },
+    [openMenu],
+  )
+
   return (
-    <article className="group relative">
+    <article
+      data-fav={favorite ? 'true' : undefined}
+      className="group relative"
+    >
       <Link
         to="/play/$gameId"
         params={{ gameId: game.id }}
         viewTransition
         data-glow
         aria-label={`游玩 ${game.title}`}
+        {...longPress}
+        onContextMenu={onContextMenu}
         className={cx(
           'glass-faux glass-faux-hoverable glass-sheen glass-refract',
+          // overflow-hidden 会把默认 :focus-visible 的外环(offset 2)裁掉,
+          // 改用 .focus-ring-inset 把外环 inset 回去,WCAG 2.4.7 始终满足
+          'focus-ring-inset',
           'relative block overflow-hidden rounded-[var(--radius-glass-md)]',
-          'transition-[transform,box-shadow,border-color] duration-[420ms]',
+          'transition-[transform,box-shadow,border-color,filter] duration-[420ms]',
           '[transition-timing-function:var(--ease-glass)]',
           'hover:-translate-y-1.5 hover:shadow-[var(--drop-lg)] active:scale-[0.985]',
           eager && 'stagger-in',
+          // 收藏卡片做克制的视觉强化:轻量玫瑰描边 + 微微提亮 +
+          // 不抢戏的脉冲呼吸;hover 时 lift 继承
+          favorite &&
+            'border-[var(--color-rose)]/45 shadow-[0_0_0_1px_color-mix(in_srgb,var(--color-rose)_42%,transparent),0_8px_22px_-12px_color-mix(in_srgb,var(--color-rose)_46%,transparent)]',
         )}
         style={eager ? ({ '--i': index } as React.CSSProperties) : undefined}
       >
@@ -138,6 +180,13 @@ export const GameCard = memo(function GameCard({ game, index = 0, eager = false 
       >
         <IconHeart size={15} filled={favorite} className={pop ? 'heart-pop' : undefined} />
       </button>
+
+      <CardQuickMenu
+        game={game}
+        open={menu.open}
+        anchor={menu.anchor}
+        onClose={closeMenu}
+      />
     </article>
   )
 })

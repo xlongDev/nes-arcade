@@ -132,6 +132,8 @@
   mix-blend-mode: screen;
   will-change: transform;
   animation: aurora-drift 26s var(--ease-glass) infinite;
+  /* 明暗主题切换时，极光颜色平滑过渡不闪（低饱和渐变过渡） */
+  transition: background 0.8s var(--ease-glass);
 }
 [data-theme='light'] .aurora-blob {
   mix-blend-mode: multiply;
@@ -374,6 +376,27 @@
 .grid-perf > * {
   content-visibility: auto;
   contain-intrinsic-size: auto 292px;
+}
+
+/* ------------------------------------------------------------
+   Popover 入场（如卡片长按菜单）
+   不用 dialog-panel 的 translateY —— popover 由 inline transform 定位,
+   keyframe 改 transform 会覆盖定位导致跳位。
+   改用纯 opacity + 独立的 scale CSS 属性(Chrome104+/Safari14.1+),
+   跟 inline transform 不打架。
+   ------------------------------------------------------------ */
+.popover-fade {
+  animation: popover-fade 0.22s var(--ease-spring) both;
+}
+@keyframes popover-fade {
+  from {
+    opacity: 0;
+    scale: 0.94;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
 }
 
 /* ------------------------------------------------------------

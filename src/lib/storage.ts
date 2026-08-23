@@ -15,6 +15,8 @@ import type { SaveSlot } from '@/types/game'
 const saveStore = createStore('nes-arcade-saves', 'saves')
 const romStore = createStore('nes-arcade-roms', 'roms')
 const metaStore = createStore('nes-arcade-meta', 'meta')
+// 用户添加的游戏目录源（存的是 FileSystemDirectoryHandle，结构化克隆可持久化）
+const dirStore = createStore('nes-arcade-dirs', 'dirs')
 
 const SLOT_KEY = (gameId: string, slot: number) => `${gameId}::${slot}`
 const SLOT_META_KEY = (gameId: string, slot: number) => `slotmeta::${gameId}::${slot}`
@@ -118,6 +120,41 @@ export async function clearSaves(): Promise<void> {
 export async function clearCustomRoms(): Promise<void> {
   const ks = await keys(romStore)
   await Promise.all(ks.map((k) => del(k, romStore)))
+}
+
+/* ---------------- 游戏目录源 ---------------- */
+
+/** 用户添加的可自动扫描的游戏目录。handle 为 FileSystemDirectoryHandle，可被结构化克隆持久化。 */
+export interface DirSource {
+  id: string
+  /** 文件夹名（展示用） */
+  name: string
+  addedAt: number
+  handle: unknown
+}
+
+/** 列出所有已添加的游戏目录（按添加时间升序） */
+export async function listDirSources(): Promise<DirSource[]> {
+  const ks = await keys(dirStore)
+  const arr = await Promise.all(ks.map((k) => get<DirSource>(k, dirStore)))
+  return (arr.filter((x): x is DirSource => Boolean(x)) as DirSource[]).sort(
+    (a, b) => a.addedAt - b.addedAt,
+  )
+}
+
+export async function addDirSource(src: DirSource): Promise<void> {
+  await set(src.id, src, dirStore)
+}
+
+export async function removeDirSource(id: string): Promise<void> {
+  await del(id, dirStore)
+}
+
+/* ---------------- 批量写入 ---------------- */
+
+/** 一次性写入多个自定义 ROM 本体，减少 await 串行开销 */
+export async function writeCustomRomsBatch(roms: { id: string; data: Uint8Array }[]): Promise<void> {
+  await Promise.all(roms.map((r) => set(r.id, new Uint8Array(r.data), romStore)))
 }
 
 /* ---------------- 工具 ---------------- */

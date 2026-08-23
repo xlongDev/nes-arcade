@@ -20,7 +20,7 @@ import {
   IconClose,
 } from '@/components/ui/Icons'
 
-const HOME_SEARCH = { q: '', cat: 'all' as const, sort: 'title' as const, fav: false } as const
+const HOME_SEARCH = { q: '', cat: 'all' as const, sort: 'title' as const, dir: 'asc' as const, fav: false, recent: false } as const
 
 /* ============================================================
    顶部栏：返回 / 标题 / 收藏

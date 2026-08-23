@@ -48,7 +48,7 @@ export function NotFound() {
           <GlassButton variant="glass" onClick={() => setBurst((n) => n + 1)}>
             <IconSparkle size={16} /> 吹一吹
           </GlassButton>
-          <Link to="/" search={{ q: '', cat: 'all', sort: 'title', fav: false }}>
+          <Link to="/" search={{ q: '', cat: 'all', sort: 'title', dir: 'asc', fav: false, recent: false }}>
             <GlassButton variant="primary">
               <IconGrid size={16} /> 回到游戏库
             </GlassButton>

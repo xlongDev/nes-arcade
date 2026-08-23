@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { Segmented } from '@/components/ui/Segmented'
 import { CategoryFilter as CategoryFilterChips } from '@/components/ui/CategoryFilter'
@@ -7,14 +7,27 @@ import { GameCard } from '@/features/library/GameCard'
 import { GlobalSearch } from '@/components/GlobalSearch'
 import { useGameSearch } from '@/features/library/useGameSearch'
 import { useLibrary } from '@/stores/library'
+import { usePrefs } from '@/stores/prefs'
 import { useGridPointerGlow } from '@/lib/pointer'
+import { useIncrementalList } from '@/lib/useIncrementalList'
+import { useCommandPalette } from '@/lib/useCommandPalette'
+import { CommandPalette } from '@/components/CommandPalette'
 import { cx } from '@/lib/cx'
 import { CATEGORIES } from '@/data/games.meta'
 import { CATEGORY_COUNTS, GAMES, getGame, TOTAL_BYTES } from '@/data/games'
 import { formatBytes } from '@/lib/format'
-import { IconHeart, IconClock, IconSparkle, IconSearch, IconUpload, IconGamepad } from '@/components/ui/Icons'
+import {
+  IconHeart,
+  IconClock,
+  IconSparkle,
+  IconSearch,
+  IconUpload,
+  IconGamepad,
+  IconArrowUp,
+  IconArrowDown,
+} from '@/components/ui/Icons'
 import type { Category, CategoryFilter } from '@/types/game'
-import type { LibrarySearch, SortKey } from '@/router'
+import type { LibrarySearch, SortDir, SortKey } from '@/router'
 
 const SORT_OPTIONS = [
   { value: 'title' as SortKey, label: '名称' },
@@ -33,30 +46,51 @@ export function LibraryPage() {
   const recents = useLibrary((s) => s.recents)
   const customGames = useLibrary((s) => s.customGames)
 
-  const games = useGameSearch(search, customGames.map((c) => ({
-    id: c.id,
-    title: c.title,
-    file: '',
-    fileName: c.title,
-    bytes: c.bytes,
-    cover: null,
-    mapper: c.mapper,
-    prgKb: 0,
-    chrKb: 0,
-    hasBattery: false,
-    hasTrainer: false,
-    mirroring: 'horizontal' as const,
-    format: 'iNES' as const,
-    category: c.category ?? 'action',
-    players: 1 as const,
-    desc: '本地上传的 ROM',
-    alias: [],
-    featured: false,
-    pinyin: '',
-    initials: '',
-    haystack: c.title.toLowerCase(),
-    isCustom: true,
-  })))
+  // 记住上次用的排序 / 方向：URL 优先级更高，prefs 只作「打开应用时」的初值兜底
+  const librarySort = usePrefs((s) => s.librarySort)
+  const libraryDir = usePrefs((s) => s.libraryDir)
+  const setLibrarySort = usePrefs((s) => s.setLibrarySort)
+  const setLibraryDir = usePrefs((s) => s.setLibraryDir)
+
+  // ⌘K 命令面板（全局快跳）的开合
+  const { open: cpOpen, setOpen: setCpOpen } = useCommandPalette()
+
+  // customGames.map 每次 render 都新建数组引用,会让 useGameSearch 里 pool 的 useMemo 缓存失效;
+  // 锁住引用后,Fuse / 排序 / 过滤的 memo 才能真正生效。
+  // 自定义 ROM 没拼音 / 别名,desc 留空以免「本地上传」这种共享串影响模糊匹配。
+  const customAsGames = useMemo(
+    () =>
+      customGames.map((c) => ({
+        id: c.id,
+        title: c.title,
+        file: '',
+        fileName: c.title,
+        bytes: c.bytes,
+        cover: null,
+        mapper: c.mapper,
+        prgKb: 0,
+        chrKb: 0,
+        hasBattery: false,
+        hasTrainer: false,
+        mirroring: 'horizontal' as const,
+        format: 'iNES' as const,
+        category: c.category ?? 'action',
+        players: 1 as const,
+        desc: '',
+        alias: [],
+        featured: false,
+        pinyin: '',
+        initials: '',
+        haystack: c.title.toLowerCase(),
+        isCustom: true,
+      })),
+    [customGames],
+  )
+
+  const games = useGameSearch(search, customAsGames)
+
+  // 长列表（含上传 ROM）增量渲染：首屏 24 条，滚动临近时自动续加，避免一次渲染卡顿
+  const incremental = useIncrementalList(games, 24)
 
   // 根据当前库里实际存在的分类动态生成筛选选项（空分类不显示），"全部"始终保留。
   // 旧版 localStorage 里的 custom 游戏可能没 category 字段，兜底按 action 计。
@@ -105,7 +139,7 @@ export function LibraryPage() {
     el.classList.remove('grid-refresh')
     void el.offsetWidth // 强制回流，确保移除后再添加能重启动画
     el.classList.add('grid-refresh')
-  }, [search.cat, search.fav])
+  }, [search.cat, search.fav, search.recent])
 
   const recentGames = useMemo(
     () => recents.map((r) => getGame(r.gameId)).filter(Boolean).slice(0, 12),
@@ -124,28 +158,58 @@ export function LibraryPage() {
   const totalCount = (CATEGORY_COUNTS.all ?? 0) + customGames.length
   const totalBytes = TOTAL_BYTES + customBytes
 
+  // 当前筛选下的"已筛 N 款 / X MB",跟 hero 胶囊联动,这样切分类 / 搜索时数字立刻反馈
+  const isFiltered = Boolean(search.q.trim()) || search.cat !== 'all' || search.fav || search.recent
+  const filteredCount = games.length
+  const filteredBytes = useMemo(
+    () => games.reduce((s, g) => s + g.bytes, 0),
+    [games],
+  )
+
   const setSearch = (patch: Partial<LibrarySearch>) =>
     void navigate({ to: '/', search: () => ({ ...search, ...patch }) })
 
-  // sticky 吸附态检测：滚动到工具栏吸顶时再加一层极淡的玻璃+底线，
-  // 避免常态下分类区底下多一层厚重面板；吸顶时又能和内容拉开层次。
-  const sentinelRef = useRef<HTMLDivElement>(null)
-  const [isStuck, setIsStuck] = useState(false)
-  useEffect(() => {
-    const el = sentinelRef.current
-    if (!el) return
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry) return
-        setIsStuck(!entry.isIntersecting)
-      },
-      { root: null, rootMargin: '-1px 0px 0px 0px', threshold: 0 },
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [])
+  // 改排序同时写 URL 与 prefs，下次打开仍是这次的选择
+  const handleSortChange = (v: SortKey) => {
+    setSearch({ sort: v })
+    setLibrarySort(v)
+  }
 
-  const showRails = !search.q && search.cat === 'all' && !search.fav
+  // 升降序切换按钮：asc 显示上箭头，desc 显示下箭头，aria-label 说明切换目标
+  const dirButton = (
+    <GlassButton
+      variant="glass"
+      size="sm"
+      onClick={() => {
+        const next: SortDir = search.dir === 'asc' ? 'desc' : 'asc'
+        setSearch({ dir: next })
+        setLibraryDir(next)
+      }}
+      aria-label={search.dir === 'asc' ? '当前升序，点击切换为降序' : '当前降序，点击切换为升序'}
+      title={search.dir === 'asc' ? '升序 · 点击切换降序' : '降序 · 点击切换升序'}
+      className="px-2"
+    >
+      {search.dir === 'asc' ? <IconArrowUp size={15} /> : <IconArrowDown size={15} />}
+    </GlassButton>
+  )
+
+  // 首启播种：URL 是隐式默认值（没带参）时，用 prefs 记住的排序 / 方向覆盖，
+  // 实现「下次打开还是上次那样」。带参分享链接（显式指定）保持原样不被覆盖。
+  // seeded 守卫确保只跑一次，setSearch 触发 search 变化也不会二次执行。
+  const seeded = useRef(false)
+  useEffect(() => {
+    if (seeded.current) return
+    seeded.current = true
+    if (
+      search.sort === 'title' &&
+      search.dir === 'asc' &&
+      (librarySort !== 'title' || libraryDir !== 'asc')
+    ) {
+      setSearch({ sort: librarySort, dir: libraryDir })
+    }
+  }, [search.sort, search.dir, librarySort, libraryDir])
+
+  const showRails = !search.q && search.cat === 'all' && !search.fav && !search.recent
 
   // 真正"空库"（没有任何内置 ROM 也没有上传 ROM）与"筛选后为零"要区别对待：
   // 前者需要引导用户添加 ROM，后者只需重置筛选。
@@ -166,28 +230,34 @@ export function LibraryPage() {
             <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">游戏库</h1>
             <div className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line-1)] bg-[color-mix(in_srgb,var(--ink-1)_6%,transparent)] px-3 py-1 text-[13px] text-[var(--ink-2)]">
               <IconGamepad size={14} className="text-[var(--ink-3)]" />
-              <span className="tnum">{totalCount} 款</span>
-              <span className="text-[var(--ink-4)]">·</span>
-              <span className="tnum">{formatBytes(totalBytes)}</span>
+              {isFiltered ? (
+                <>
+                  <span className="tnum">{filteredCount} 款</span>
+                  <span className="text-[var(--ink-4)]">·</span>
+                  <span className="tnum">{formatBytes(filteredBytes)}</span>
+                  <span className="text-[var(--ink-4)]">/</span>
+                  <span className="text-[var(--ink-3)]">
+                    全 <span className="tnum">{totalCount}</span>
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="tnum">{totalCount} 款</span>
+                  <span className="text-[var(--ink-4)]">·</span>
+                  <span className="tnum">{formatBytes(totalBytes)}</span>
+                </>
+              )}
             </div>
           </div>
-          <p className="mt-3 max-w-xl text-[13.5px] leading-relaxed text-[var(--ink-4)]">
+          <p className="mt-3 max-w-xl text-[13.5px] leading-relaxed text-[var(--ink-3)]">
             点开即玩，进度与存档都留在本机 · 支持中 / 拼音 / 英文搜索
           </p>
         </div>
       </header>
 
-      {/* sticky 吸附 sentinel：位于工具栏正上方，用于判断工具栏是否已吸顶 */}
-      <div ref={sentinelRef} className="pointer-events-none h-0" aria-hidden="true" />
-
-      {/* 工具栏：分类筛选 + 排序 + 收藏 */}
-      {/* 常态下无玻璃底板，pill 直接浮在页面背景上；吸顶时才出现极淡玻璃+底线。 */}
-      <div
-        className={cx(
-          'sticky top-[calc(env(safe-area-inset-top)_+_92px)] z-30 -mx-1 mb-7 flex flex-col gap-3 px-1 py-2 transition-[background,border,box-shadow,backdrop-filter] duration-300 [transition-timing-function:var(--ease-glass)]',
-          isStuck && 'border-b border-[var(--line-1)] bg-[color-mix(in_srgb,var(--bg-base)_72%,transparent)] backdrop-blur-xl',
-        )}
-      >
+      {/* 工具栏：分类筛选 + 排序 + 收藏，吸顶但无背景/模糊/描边。
+          top 用 --topbar-h 由 TopBar 动态注入,避免硬编码 92px 与收缩后的实际高度不同步 */}
+      <div className="sticky top-[calc(env(safe-area-inset-top)_+_var(--topbar-h,72px)_+_8px)] z-30 -mx-1 mb-7 flex flex-col gap-3 px-1 py-2">
         <div className="flex flex-wrap items-center gap-3">
           <GlobalSearch size="md" className="w-44 shrink-0 sm:w-52" />
           <div className="min-w-0">
@@ -195,11 +265,12 @@ export function LibraryPage() {
               label="游戏分类"
               value={search.cat}
               options={categoryOptions}
+              ariaControls="game-grid"
               onChange={(v) => setSearch({ cat: v as CategoryFilter })}
             />
           </div>
 
-          {/* 排序 + 收藏归到右侧操作组；大屏并入同一行，移动端排序单独放第二行 */}
+          {/* 排序 + 收藏归到右侧操作组 */}
           <div className="ml-auto flex items-center gap-2">
             {!search.fav && (
               <div className="hidden items-center gap-2 lg:flex">
@@ -209,16 +280,34 @@ export function LibraryPage() {
                   size="sm"
                   value={search.sort}
                   options={SORT_OPTIONS}
-                  onChange={(v) => setSearch({ sort: v })}
+                  onChange={handleSortChange}
                 />
+                {dirButton}
               </div>
             )}
 
             <GlassButton
               variant="glass"
               size="md"
+              active={search.recent}
+              onClick={() => setSearch({ recent: !search.recent, fav: false })}
+              aria-label="只看最近游玩"
+              title="只看最近游玩"
+              className={cx(
+                'transition-[color,background-color,border-color] duration-300 [transition-timing-function:var(--ease-glass)]',
+                search.recent &&
+                  'border-[color-mix(in_srgb,var(--color-brand)_42%,transparent)] bg-[color-mix(in_srgb,var(--color-brand)_16%,transparent)] text-[var(--color-brand)]',
+              )}
+            >
+              <IconClock size={16} />
+              <span className="hidden sm:inline">最近</span>
+            </GlassButton>
+
+            <GlassButton
+              variant="glass"
+              size="md"
               active={search.fav}
-              onClick={() => setSearch({ fav: !search.fav })}
+              onClick={() => setSearch({ fav: !search.fav, recent: false })}
               aria-label="只看收藏"
               title="只看收藏"
               className={cx(
@@ -241,8 +330,9 @@ export function LibraryPage() {
               size="sm"
               value={search.sort}
               options={SORT_OPTIONS}
-              onChange={(v) => setSearch({ sort: v })}
+              onChange={handleSortChange}
             />
+            {dirButton}
           </div>
         )}
       </div>
@@ -268,17 +358,24 @@ export function LibraryPage() {
       {/* 结果网格 */}
       {games.length === 0 ? (
         hasAnyGame ? (
-          <EmptyState onReset={() => setSearch({ q: '', cat: 'all', fav: false })} />
+          <EmptyState onReset={() => setSearch({ q: '', cat: 'all', fav: false, recent: false })} />
         ) : (
           <LibraryEmptyGuide />
         )
       ) : (
-        <div ref={gridRef} className="card-grid grid-perf mt-2">
-          {games.map((g, i) => (
-            <GameCard key={g.id} game={g} index={i} eager={i < 12} />
-          ))}
-        </div>
+        <>
+          <div ref={gridRef} id="game-grid" className="card-grid grid-perf mt-2">
+            {incremental.visible.map((g, i) => (
+              <GameCard key={g.id} game={g} index={i} eager={i < 12} />
+            ))}
+          </div>
+          {incremental.hasMore && (
+            <div ref={incremental.sentinelRef} aria-hidden="true" className="h-10" />
+          )}
+        </>
       )}
+
+      <CommandPalette open={cpOpen} onClose={() => setCpOpen(false)} />
     </div>
   )
 }

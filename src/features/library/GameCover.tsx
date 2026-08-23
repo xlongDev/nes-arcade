@@ -44,7 +44,7 @@ export const GameCover = memo(function GameCover({
     <div
       className={cx('relative isolate overflow-hidden', className)}
       style={{
-        background: `linear-gradient(152deg, ${palette.from}, ${palette.to})`,
+        background: `linear-gradient(${palette.angle}deg, ${palette.from}, ${palette.to})`,
       }}
     >
       {showImage ? (

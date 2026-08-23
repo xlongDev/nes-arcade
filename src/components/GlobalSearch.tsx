@@ -43,12 +43,13 @@ export function GlobalSearch({ size = 'md', className }: GlobalSearchProps) {
     return () => clearTimeout(t)
   }, [draft, urlQuery, navigate, currentSearch])
 
-  // ⌘K / Ctrl+K / 斜杠 聚焦搜索
+  // ⌘K 已让给命令面板（CommandPalette 在 LibraryPage 接管，负责全局快跳）；
+  // 这里只保留「/ 聚焦搜索框」。面板打开时(<html data-cp-open>)不抢焦点，让 / 落到面板输入框。
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName
       const typing = tag === 'INPUT' || tag === 'TEXTAREA'
-      if ((e.key === 'k' && (e.metaKey || e.ctrlKey)) || (e.key === '/' && !typing)) {
+      if (e.key === '/' && !typing && !document.documentElement.dataset.cpOpen) {
         e.preventDefault()
         inputRef.current?.focus()
         inputRef.current?.select()

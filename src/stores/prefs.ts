@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { KeyMap, NesButton } from '@/types/game'
+import type { SortDir, SortKey } from '@/router'
 
 export type ThemeMode = 'system' | 'light' | 'dark'
 export type VideoFilter = 'none' | 'scanline' | 'crt'
@@ -54,6 +55,12 @@ interface PrefsState {
   integerScale: boolean
   reduceGlass: boolean
   firstRunDone: boolean
+  /** 启动时自动扫描已添加的游戏目录，导入新增的 ROM */
+  autoScanDirs: boolean
+  /** 上次在游戏库用的排序(「名称 / 年代 / 体积 / 最近」)。URL 优先级更高,
+   *  这里只用于「打开应用时」的初值,以及刷新前一份链接忘了带参时的兜底。 */
+  librarySort: SortKey
+  libraryDir: SortDir
 
   setThemeMode: (m: ThemeMode) => void
   setVolume: (v: number) => void
@@ -63,6 +70,8 @@ interface PrefsState {
   resetKeymap: () => void
   setVideoFilter: (f: VideoFilter) => void
   setTouchPad: (t: 'auto' | 'on' | 'off') => void
+  setLibrarySort: (s: SortKey) => void
+  setLibraryDir: (d: SortDir) => void
   patch: (p: Partial<PrefsState>) => void
 }
 
@@ -81,6 +90,9 @@ export const usePrefs = create<PrefsState>()(
       integerScale: false,
       reduceGlass: false,
       firstRunDone: false,
+      autoScanDirs: true,
+      librarySort: 'title',
+      libraryDir: 'asc',
 
       setThemeMode: (themeMode) => set({ themeMode }),
       setVolume: (volume) => set({ volume: Math.max(0, Math.min(1, volume)), muted: false }),
@@ -95,11 +107,13 @@ export const usePrefs = create<PrefsState>()(
       resetKeymap: () => set({ keymap: DEFAULT_KEYMAP }),
       setVideoFilter: (videoFilter) => set({ videoFilter }),
       setTouchPad: (touchPad) => set({ touchPad }),
+      setLibrarySort: (librarySort) => set({ librarySort }),
+      setLibraryDir: (libraryDir) => set({ libraryDir }),
       patch: (p) => set(p),
     }),
     {
       name: 'nes-arcade:prefs',
-      version: 1,
+      version: 2,
       // 与 index.html 的防闪烁脚本读取同一份结构，别改 key 名
       partialize: (s) => ({
         themeMode: s.themeMode,
@@ -114,7 +128,21 @@ export const usePrefs = create<PrefsState>()(
         integerScale: s.integerScale,
         reduceGlass: s.reduceGlass,
         firstRunDone: s.firstRunDone,
+        autoScanDirs: s.autoScanDirs,
+        librarySort: s.librarySort,
+        libraryDir: s.libraryDir,
       }),
+      // v1 没 librarySort / libraryDir,补默认值
+      migrate: (persistedState, version) => {
+        if (version < 2) {
+          return {
+            ...(persistedState as PrefsState),
+            librarySort: 'title' as SortKey,
+            libraryDir: 'asc' as SortDir,
+          }
+        }
+        return persistedState as PrefsState
+      },
     },
   ),
 )
