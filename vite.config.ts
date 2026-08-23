@@ -5,8 +5,9 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
-  // 相对路径，便于部署到任意子路径 / 静态托管（GitHub Pages、对象存储等）
-  base: './',
+  // GitHub Pages 部署在子路径 /nes-arcade/，显式 base 让 PWA service worker
+  // 作用域与 manifest 正确解析；本地 dev 仍然正常访问。
+  base: '/nes-arcade/',
 
   resolve: {
     alias: {
