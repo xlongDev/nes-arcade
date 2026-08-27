@@ -8,7 +8,7 @@
 [![Node](https://img.shields.io/badge/Node-%E2%89%A5%2020-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
 [![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](https://vite.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-7.0-3178C6?logo=typescript&logoColor=white)](https://typescriptlang.org)
 [![PWA](https://img.shields.io/badge/PWA-ready-5A0FC8?logo=pwa&logoColor=white)](#-部署)
 [![No CDN](https://img.shields.io/badge/runtime-no%20CDN-success)](#-特性一览)
 
@@ -27,9 +27,9 @@
 >
 > | 方式 | 操作 | 适合 |
 > |---|---|---|
-> | **① 批量导入**（推荐） | 把 `.nes` 文件丢进仓库**同级**的 `../roms/` 目录，然后跑 `npm run prepare:data` | 有一整个收藏夹 |
-> | **② 网页上传** | 直接 `npm run dev`，打开**上传页**拖入 `.nes` 文件，存进浏览器 IndexedDB | 只想试玩一两个 |
-> | **③ 自定义路径** | 设置环境变量 `ROMS_SRC=/你的/路径 npm run prepare:data` | ROM 在别处 |
+> | **① 批量导入**（推荐） | 把 `.nes` 文件丢进仓库**同级**的 `../roms/` 目录，然后跑 `pnpm run prepare:data` | 有一整个收藏夹 |
+> | **② 网页上传** | 直接 `pnpm run dev`，打开**上传页**拖入 `.nes` 文件，存进浏览器 IndexedDB | 只想试玩一两个 |
+> | **③ 自定义路径** | 设置环境变量 `ROMS_SRC=/你的/路径 pnpm run prepare:data` | ROM 在别处 |
 >
 > 目录结构应为：
 > ```
@@ -83,19 +83,19 @@
 ### 前置条件
 
 - **Node.js ≥ 20**（推荐 22，已用 22.22 验证）
-- npm（随 Node 自带）
+- pnpm（≥ 9，包管理器；本仓库已锁定 `pnpm-lock.yaml`）
 
 ### 安装与启动
 
 ```bash
 # 1. 安装依赖
-npm install
+pnpm install
 
 # 2. 准备游戏数据（见下「数据准备」）
-npm run prepare:data
+pnpm run prepare:data
 
 # 3. 启动开发服务器
-npm run dev
+pnpm run dev
 # 打开 http://localhost:5173/
 ```
 
@@ -105,12 +105,12 @@ npm run dev
 
 | 命令 | 作用 |
 |---|---|
-| `npm run dev` | 启动开发服务器（5173 端口） |
-| `npm run build` | 生产构建，产物在 `dist/` |
-| `npm run preview` | 本地预览生产构建 |
-| `npm run typecheck` | 仅类型检查（`tsc --noEmit`） |
-| `npm run lint` | oxlint 静态检查 |
-| `npm run prepare:data` | 同步 + 扫描 + 生成拼音索引（完整数据管线） |
+| `pnpm run dev` | 启动开发服务器（5173 端口） |
+| `pnpm run build` | 生产构建，产物在 `dist/` |
+| `pnpm run preview` | 本地预览生产构建 |
+| `pnpm run typecheck` | 仅类型检查（`tsc --noEmit`） |
+| `pnpm run lint` | oxlint 静态检查 |
+| `pnpm run prepare:data` | 同步 + 扫描 + 生成拼音索引（完整数据管线） |
 
 ---
 
@@ -125,7 +125,7 @@ npm run dev
 ### 一键准备
 
 ```bash
-npm run prepare:data
+pnpm run prepare:data
 ```
 
 它依次执行：
@@ -134,7 +134,7 @@ npm run prepare:data
 2. **`scan`** — 解析每个 ROM 的 iNES / NES 2.0 文件头，产出 `games.generated.json`（含 `mapper`、PRG/CHR 大小、是否带电池、镜像方式等）。
 3. **`gen:pinyin`** — 为含汉字的标题生成拼音索引（需 `pinyin-pro`，已加入 devDependencies）。
 
-> 想重新整理收藏？直接改 `../roms` 目录后重跑 `npm run prepare:data` 即可；人工元数据写在 `src/data/games.meta.ts`，重新扫描不会覆盖。
+> 想重新整理收藏？直接改 `../roms` 目录后重跑 `pnpm run prepare:data` 即可；人工元数据写在 `src/data/games.meta.ts`，重新扫描不会覆盖。
 
 ### 自定义 / 上传 ROM
 
@@ -148,10 +148,10 @@ npm run prepare:data
 
 ## 🌐 部署
 
-项目采用 **相对路径 `base: './'`**，可部署到任意静态托管（含子路径，如 `example.com/nes/`）。
+项目采用 **显式子路径 `base: '/nes-arcade/'`**（适配 GitHub Pages 子目录部署；本地 dev 仍正常访问根路径）。
 
 ```bash
-npm run build
+pnpm run build
 # 将 dist/ 整个目录上传到任意静态服务器 / 对象存储 / GitHub Pages
 ```
 

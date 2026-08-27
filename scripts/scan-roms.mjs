@@ -44,7 +44,7 @@ function stableId(name) {
 
 async function main() {
   if (!existsSync(ROMS)) {
-    console.error(`✗ 找不到 ${ROMS}，请先运行 npm run sync`)
+    console.error(`✗ 找不到 ${ROMS}，请先运行 pnpm run sync`)
     process.exit(1)
   }
 

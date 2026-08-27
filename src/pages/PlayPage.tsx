@@ -12,7 +12,7 @@ import { GlassPanel } from '@/components/ui/GlassPanel'
 import { GlassDialog } from '@/components/ui/GlassDialog'
 import { StatusBadge } from '@/components/emulator/StatusBadge'
 import { GameTopBar, GameToolbar, ShortcutHints } from '@/components/emulator/GameHUD'
-import { IconBack, IconClose, IconGrid, IconLoad, IconSave } from '@/components/ui/Icons'
+import { IconBack, IconClose, IconGrid, IconLoad, IconSave, IconSettings } from '@/components/ui/Icons'
 import { cx } from '@/lib/cx'
 import { formatRelative } from '@/lib/format'
 import { useEmulator } from '@/features/emulator/useEmulator'
@@ -20,6 +20,7 @@ import { useKeyboardInput } from '@/features/emulator/useKeyboardInput'
 import { useGamepadInput } from '@/features/emulator/useGamepadInput'
 import { VirtualPad } from '@/features/emulator/VirtualPad'
 import { VideoFilterOverlay } from '@/features/emulator/VideoFilterOverlay'
+import { KeyBindingsEditor } from '@/features/emulator/KeyBindingsEditor'
 
 const SLOT_COUNT = 5
 
@@ -110,7 +111,8 @@ export function PlayPage() {
     runId,
   })
 
-  const [panel, setPanel] = useState<'none' | 'slots'>('none')
+  const [panel, setPanel] = useState<'none' | 'slots' | 'keymap'>('none')
+  const [padEditing, setPadEditing] = useState(false)
   const [saves, setSaves] = useState<SaveSlot[]>([])
 
   const refreshSaves = useCallback(async () => {
@@ -122,8 +124,8 @@ export function PlayPage() {
     if (panel === 'slots') void refreshSaves()
   }, [panel, refreshSaves])
 
-  // 输入：键盘 / 手柄 / 虚拟手柄
-  const inputEnabled = !panel && api.status !== 'error' && api.status !== 'idle'
+  // 输入：键盘 / 手柄 / 虚拟手柄；面板打开时屏蔽，避免误触或影响键位捕获
+  const inputEnabled = panel === 'none' && api.status !== 'error' && api.status !== 'idle'
   useKeyboardInput({ enabled: inputEnabled, keymap, pressDown: api.pressDown, pressUp: api.pressUp })
   useGamepadInput({ enabled: inputEnabled, gamepadMap, pressDown: api.pressDown, pressUp: api.pressUp })
   const showVirtualPad =
@@ -138,7 +140,7 @@ export function PlayPage() {
       const t = e.target as HTMLElement | null
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
       // 面板开着时游戏快捷键全部让路；Esc 由 GlassDialog 在 capture 阶段接管
-      if (panel) return
+      if (panel !== 'none') return
       if (e.code === 'Space' && canUseSpace && !(e.code in keymap)) {
         e.preventDefault()
         api.togglePause()
@@ -316,6 +318,8 @@ export function PlayPage() {
         onCover={() => void handleCover()}
         panelOpen={panel === 'slots'}
         onTogglePanel={() => setPanel(panel === 'slots' ? 'none' : 'slots')}
+        keymapOpen={panel === 'keymap'}
+        onToggleKeymap={() => setPanel(panel === 'keymap' ? 'none' : 'keymap')}
         onRemove={game.isCustom ? handleRemove : undefined}
       />
 
@@ -324,7 +328,38 @@ export function PlayPage() {
       {/* 移动端虚拟手柄 */}
       {showVirtualPad && (
         <GlassPanel radius="lg" className="mx-auto w-full max-w-[520px]">
-          <VirtualPad pressDown={api.pressDown} pressUp={api.pressUp} haptics={touchHaptics} />
+          <div className="flex items-center justify-between px-1 pt-2">
+            <div className="flex items-baseline gap-2">
+              <span className="text-[12px] font-medium text-[var(--ink-2)]">触摸操作</span>
+              {padEditing && (
+                <span className="text-[11px] text-[var(--color-brand)]">拖动调整位置</span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setPadEditing((v) => !v)}
+              aria-label={padEditing ? '完成调整' : '调整虚拟手柄位置'}
+              title={padEditing ? '完成' : '调整位置'}
+              className={cx(
+                'grid size-8 place-items-center rounded-full transition-all duration-200',
+                padEditing
+                  ? 'bg-[var(--color-brand)] text-white shadow-[0_4px_12px_-2px_color-mix(in_srgb,var(--color-brand)_60%,transparent)]'
+                  : 'text-[var(--ink-3)] hover:bg-[color-mix(in_srgb,var(--ink-1)_10%,transparent)] hover:text-[var(--ink-1)]',
+              )}
+            >
+              {padEditing ? (
+                <IconClose size={16} />
+              ) : (
+                <IconSettings size={16} />
+              )}
+            </button>
+          </div>
+          <VirtualPad
+            pressDown={api.pressDown}
+            pressUp={api.pressUp}
+            haptics={touchHaptics}
+            editable={padEditing}
+          />
         </GlassPanel>
       )}
 
@@ -408,6 +443,16 @@ export function PlayPage() {
         <p className="mt-3 text-[11px] leading-snug text-[var(--ink-4)]">
           存档保存在浏览器本地（IndexedDB），换设备不会同步。带电池存档的游戏会自动保存进度。
         </p>
+      </GlassDialog>
+
+      {/* 键位设置面板 */}
+      <GlassDialog
+        open={panel === 'keymap'}
+        onClose={() => setPanel('none')}
+        title="键位设置"
+        icon={<IconSettings size={17} />}
+      >
+        <KeyBindingsEditor showHint={false} compact />
       </GlassDialog>
     </div>
   )

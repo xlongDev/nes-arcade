@@ -18,6 +18,7 @@ import {
   IconCamera,
   IconSave,
   IconClose,
+  IconSettings,
 } from '@/components/ui/Icons'
 
 const HOME_SEARCH = { q: '', cat: 'all' as const, sort: 'title' as const, dir: 'asc' as const, fav: false, recent: false } as const
@@ -91,6 +92,8 @@ interface GameToolbarProps {
   onCover: () => void
   panelOpen: boolean
   onTogglePanel: () => void
+  keymapOpen: boolean
+  onToggleKeymap: () => void
   onRemove?: () => void
 }
 
@@ -104,6 +107,8 @@ export const GameToolbar = memo(function GameToolbar({
   onCover,
   panelOpen,
   onTogglePanel,
+  keymapOpen,
+  onToggleKeymap,
   onRemove,
 }: GameToolbarProps) {
   const disabled = api.status === 'loading' || api.status === 'error'
@@ -157,6 +162,15 @@ export const GameToolbar = memo(function GameToolbar({
         aria-label="存档 / 读档"
       >
         <IconSave size={18} />
+      </GlassButton>
+      <GlassButton
+        variant={keymapOpen ? 'primary' : 'glass'}
+        size="icon"
+        onClick={onToggleKeymap}
+        title="键位设置"
+        aria-label="键位设置"
+      >
+        <IconSettings size={18} />
       </GlassButton>
 
       {onRemove && (

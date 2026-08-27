@@ -9,36 +9,11 @@ import { RootLayout } from '@/components/layout/RootLayout'
 import { PagePending } from '@/components/ui/PagePending'
 import { LibraryPage } from '@/pages/LibraryPage'
 import { NotFound } from '@/pages/NotFound'
-import type { CategoryFilter } from '@/types/game'
+import { RouteError } from '@/components/RouteError'
+import { validateLibrarySearch } from '@/lib/librarySearch'
 
-const CATS: CategoryFilter[] = [
-  'all',
-  'action',
-  'shooter',
-  'fighting',
-  'puzzle',
-  'sports',
-  'rpg',
-  'board',
-  'multicart',
-]
-
-export type SortKey = 'title' | 'year' | 'size' | 'recent'
-const SORTS: SortKey[] = ['title', 'year', 'size', 'recent']
-
-export type SortDir = 'asc' | 'desc'
-const DIRS: SortDir[] = ['asc', 'desc']
-
-export interface LibrarySearch {
-  q: string
-  cat: CategoryFilter
-  sort: SortKey
-  /** 排序方向;升降序可切,默认 asc */
-  dir: SortDir
-  fav: boolean
-  /** 只看最近游玩(最近 N 款);与 fav 互斥,默认 false */
-  recent: boolean
-}
+// 真实定义位于 @/lib/librarySearch，这里仅做类型再导出，保持既有 @/router 引用不变
+export type { LibrarySearch, SortDir, SortKey } from '@/lib/librarySearch'
 
 const rootRoute = createRootRoute({
   component: RootLayout,
@@ -52,20 +27,9 @@ const indexRoute = createRoute({
   /**
    * 类型安全的 search params：筛选状态直接写进 URL，
    * 于是「筛完的列表」天然可分享、可后退、可刷新恢复。
+   * 校验逻辑收敛在 validateLibrarySearch（纯函数，可单测）。
    */
-  validateSearch: (raw: Record<string, unknown>): LibrarySearch => {
-    const cat = String(raw.cat ?? 'all') as CategoryFilter
-    const sort = String(raw.sort ?? 'title') as SortKey
-    const dir = String(raw.dir ?? 'asc') as SortDir
-    return {
-      q: typeof raw.q === 'string' ? raw.q.slice(0, 60) : '',
-      cat: CATS.includes(cat) ? cat : 'all',
-      sort: SORTS.includes(sort) ? sort : 'title',
-      dir: DIRS.includes(dir) ? dir : 'asc',
-      fav: raw.fav === true || raw.fav === 'true',
-      recent: raw.recent === true || raw.recent === 'true',
-    }
-  },
+  validateSearch: validateLibrarySearch,
 })
 
 const playRoute = createRoute({
@@ -96,6 +60,8 @@ export const router = createRouter({
   routeTree,
   // hash 路由：静态托管零配置，不需要服务端 rewrite
   history: createHashHistory(),
+  // 任意路由渲染期抛错（WASM / ROM / 解析异常）统一兜底，不再整页白屏
+  defaultErrorComponent: RouteError,
   defaultPreload: 'intent',
   defaultPreloadDelay: 60,
   scrollRestoration: true,

@@ -16,7 +16,7 @@ let pinyin
 try {
   ;({ pinyin } = require('pinyin-pro'))
 } catch {
-  console.error('✗ 缺少 pinyin-pro，请先 npm i -D pinyin-pro')
+  console.error('✗ 缺少 pinyin-pro，请先 pnpm add -D pinyin-pro')
   process.exit(1)
 }
 

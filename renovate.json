@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "labels": ["dependencies"],
+  "rangeStrategy": "bump",
+  "separateMajorMinor": true,
+  "dependencyDashboard": true,
+  "packageRules": [
+    {
+      "description": "npm 依赖统一分组，跨大版本也单独提 PR（匹配本仓库激进升级策略）",
+      "matchManagers": ["npm"],
+      "groupName": "npm 依赖"
+    }
+  ]
+}

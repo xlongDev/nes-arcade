@@ -40,9 +40,9 @@ async function main() {
   if (!existsSync(SOURCE)) {
     console.log(`ℹ 未找到 ROM 源目录：${SOURCE}`)
     console.log('  跳过同步。若要批量导入 ROM，请任选一种方式：')
-    console.log(`    · 把 .nes 文件放进 ${SOURCE}，再重跑 npm run prepare:data`)
-    console.log('    · 或指定其它目录：ROMS_SRC=/你的/路径 npm run prepare:data')
-    console.log('    · 或直接 npm run dev，在应用「上传页」拖入 .nes 文件')
+    console.log(`    · 把 .nes 文件放进 ${SOURCE}，再重跑 pnpm run prepare:data`)
+    console.log('    · 或指定其它目录：ROMS_SRC=/你的/路径 pnpm run prepare:data')
+    console.log('    · 或直接 pnpm run dev，在应用「上传页」拖入 .nes 文件')
     return
   }
 

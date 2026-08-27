@@ -6,7 +6,7 @@ import type { SortDir, SortKey } from '@/router'
 export type ThemeMode = 'system' | 'light' | 'dark'
 export type VideoFilter = 'none' | 'scanline' | 'crt'
 
-/** 默认键位：贴合原版手柄的手感，方向键 + ZX，Enter/Shift 当 Start/Select */
+/** 默认键位：方向键 + WASD + IJKL 双方向布局，Enter/Shift 当 Start/Select */
 export const DEFAULT_KEYMAP: KeyMap = {
   ArrowUp: 'up',
   ArrowDown: 'down',
@@ -16,10 +16,19 @@ export const DEFAULT_KEYMAP: KeyMap = {
   KeyS: 'down',
   KeyA: 'left',
   KeyD: 'right',
-  KeyJ: 'b',
-  KeyK: 'a',
-  KeyZ: 'b',
-  KeyX: 'a',
+  KeyI: 'up',
+  KeyK: 'down',
+  KeyJ: 'left',
+  KeyL: 'right',
+  // A/B：字母区用 U/O，数字区用小键盘 1/3
+  KeyU: 'a',
+  KeyO: 'b',
+  Numpad8: 'up',
+  Numpad2: 'down',
+  Numpad4: 'left',
+  Numpad6: 'right',
+  Numpad1: 'b',
+  Numpad3: 'a',
   Enter: 'start',
   ShiftRight: 'select',
   ShiftLeft: 'select',
@@ -49,6 +58,8 @@ interface PrefsState {
   /** 移动端虚拟手柄：auto = 触摸设备自动显示 */
   touchPad: 'auto' | 'on' | 'off'
   touchHaptics: boolean
+  /** 虚拟手柄自定义按钮位置（百分比 {x,y}），未定义则使用默认布局 */
+  touchPadLayout: Partial<Record<NesButton, { x: number; y: number }>>
   /** 游玩 10 秒自动截图作为封面 */
   autoCover: boolean
   /** 整数倍缩放，避免像素被拉糊 */
@@ -70,6 +81,8 @@ interface PrefsState {
   resetKeymap: () => void
   setVideoFilter: (f: VideoFilter) => void
   setTouchPad: (t: 'auto' | 'on' | 'off') => void
+  setTouchPadLayout: (button: NesButton, pos: { x: number; y: number } | null) => void
+  resetTouchPadLayout: () => void
   setLibrarySort: (s: SortKey) => void
   setLibraryDir: (d: SortDir) => void
   patch: (p: Partial<PrefsState>) => void
@@ -86,6 +99,7 @@ export const usePrefs = create<PrefsState>()(
       videoFilter: 'none',
       touchPad: 'auto',
       touchHaptics: true,
+      touchPadLayout: {},
       autoCover: true,
       integerScale: false,
       reduceGlass: false,
@@ -107,13 +121,21 @@ export const usePrefs = create<PrefsState>()(
       resetKeymap: () => set({ keymap: DEFAULT_KEYMAP }),
       setVideoFilter: (videoFilter) => set({ videoFilter }),
       setTouchPad: (touchPad) => set({ touchPad }),
+      setTouchPadLayout: (button, pos) =>
+        set((s) => {
+          const next = { ...s.touchPadLayout }
+          if (pos) next[button] = pos
+          else delete next[button]
+          return { touchPadLayout: next }
+        }),
+      resetTouchPadLayout: () => set({ touchPadLayout: {} }),
       setLibrarySort: (librarySort) => set({ librarySort }),
       setLibraryDir: (libraryDir) => set({ libraryDir }),
       patch: (p) => set(p),
     }),
     {
       name: 'nes-arcade:prefs',
-      version: 2,
+      version: 3,
       // 与 index.html 的防闪烁脚本读取同一份结构，别改 key 名
       partialize: (s) => ({
         themeMode: s.themeMode,
@@ -124,6 +146,7 @@ export const usePrefs = create<PrefsState>()(
         videoFilter: s.videoFilter,
         touchPad: s.touchPad,
         touchHaptics: s.touchHaptics,
+        touchPadLayout: s.touchPadLayout,
         autoCover: s.autoCover,
         integerScale: s.integerScale,
         reduceGlass: s.reduceGlass,
@@ -132,16 +155,20 @@ export const usePrefs = create<PrefsState>()(
         librarySort: s.librarySort,
         libraryDir: s.libraryDir,
       }),
-      // v1 没 librarySort / libraryDir,补默认值
+      // v1→v2 补 librarySort / libraryDir; v2→v3 补 touchPadLayout
       migrate: (persistedState, version) => {
+        let state = persistedState as PrefsState
         if (version < 2) {
-          return {
-            ...(persistedState as PrefsState),
+          state = {
+            ...state,
             librarySort: 'title' as SortKey,
             libraryDir: 'asc' as SortDir,
           }
         }
-        return persistedState as PrefsState
+        if (version < 3) {
+          state = { ...state, touchPadLayout: {} }
+        }
+        return state
       },
     },
   ),

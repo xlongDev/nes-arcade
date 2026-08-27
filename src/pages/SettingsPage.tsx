@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { GlassButton } from '@/components/ui/GlassButton'
 import { GlassPanel } from '@/components/ui/GlassPanel'
@@ -8,7 +8,6 @@ import { Toggle } from '@/components/ui/Toggle'
 import {
   IconBack,
   IconSun,
-  IconGamepad,
   IconVolume,
   IconSparkle,
   IconReset,
@@ -22,7 +21,7 @@ import { toast } from '@/components/ui/Toast'
 import { confirmDialog } from '@/components/ui/ConfirmDialog'
 import { formatBytes } from '@/lib/format'
 import { switchThemeWithTransition } from '@/lib/useThemeSync'
-import type { NesButton } from '@/types/game'
+import { KeyBindingsEditor } from '@/features/emulator/KeyBindingsEditor'
 
 const THEME_OPTIONS = [
   { value: 'system' as ThemeMode, label: '跟随系统' },
@@ -39,35 +38,6 @@ const PAD_OPTIONS = [
   { value: 'on' as const, label: '始终' },
   { value: 'off' as const, label: '关闭' },
 ]
-
-const NES_BUTTONS: { button: NesButton; label: string }[] = [
-  { button: 'up', label: '上' },
-  { button: 'down', label: '下' },
-  { button: 'left', label: '左' },
-  { button: 'right', label: '右' },
-  { button: 'a', label: 'A' },
-  { button: 'b', label: 'B' },
-  { button: 'start', label: 'Start' },
-  { button: 'select', label: 'Select' },
-]
-
-const KEY_LABELS: Record<string, string> = {
-  ArrowUp: '↑',
-  ArrowDown: '↓',
-  ArrowLeft: '←',
-  ArrowRight: '→',
-  ShiftLeft: 'L-Shift',
-  ShiftRight: 'R-Shift',
-  Enter: 'Enter',
-  Space: 'Space',
-}
-
-function prettyKey(code: string): string {
-  if (KEY_LABELS[code]) return KEY_LABELS[code]
-  if (code.startsWith('Key')) return code.slice(3)
-  if (code.startsWith('Digit')) return code.slice(5)
-  return code
-}
 
 function Section({
   title,
@@ -91,71 +61,6 @@ function Section({
   )
 }
 
-function KeyBindRow({
-  button,
-  codes,
-  onCapture,
-  onReset,
-}: {
-  button: NesButton
-  codes: string[]
-  onCapture: (code: string) => void
-  onReset: () => void
-}) {
-  const [capturing, setCapturing] = useState(false)
-
-  useEffect(() => {
-    if (!capturing) return
-    const onKey = (e: KeyboardEvent) => {
-      e.preventDefault()
-      onCapture(e.code)
-      setCapturing(false)
-    }
-    window.addEventListener('keydown', onKey, { once: true })
-    return () => window.removeEventListener('keydown', onKey)
-  }, [capturing, onCapture])
-
-  return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3">
-      <span className="text-[14px] text-[var(--ink-1)]">{button.toUpperCase()}</span>
-      <div className="flex items-center gap-2">
-        {capturing ? (
-          <span className="rounded-full bg-[color-mix(in_srgb,var(--color-brand)_22%,transparent)] px-3 py-1.5 text-[12px] text-[var(--color-brand)]">
-            按下任意键…
-          </span>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setCapturing(true)}
-            className="flex flex-wrap justify-end gap-1 rounded-full border border-[var(--line-2)] bg-[color-mix(in_srgb,var(--ink-1)_6%,transparent)] px-3 py-1.5 text-[12px] text-[var(--ink-1)] transition-colors hover:border-[var(--line-3)]"
-          >
-            {codes.length ? (
-              codes.map((c) => (
-                <kbd
-                  key={c}
-                  className="rounded bg-[color-mix(in_srgb,var(--ink-1)_12%,transparent)] px-1.5 py-0.5 font-mono text-[11px]"
-                >
-                  {prettyKey(c)}
-                </kbd>
-              ))
-            ) : (
-              <span className="text-[var(--ink-4)]">未绑定</span>
-            )}
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={onReset}
-          aria-label={`重置 ${button} 键位`}
-          className="grid size-7 place-items-center rounded-full text-[var(--ink-4)] hover:text-[var(--ink-1)]"
-        >
-          <IconReset size={14} />
-        </button>
-      </div>
-    </div>
-  )
-}
-
 export function SettingsPage() {
   const prefs = usePrefs()
   const customGames = useLibrary((s) => s.customGames)
@@ -165,15 +70,6 @@ export function SettingsPage() {
   useEffect(() => {
     void estimateUsage().then(setUsage)
   }, [])
-
-  // 当前每个 NES 键位绑定的键盘码（反向查找，可能有多个）
-  const codesByButton = useMemo(() => {
-    const map: Record<string, string[]> = {}
-    for (const [code, btn] of Object.entries(prefs.keymap)) {
-      ;(map[btn] ??= []).push(code)
-    }
-    return map
-  }, [prefs.keymap])
 
   const setTheme = (v: ThemeMode) => switchThemeWithTransition(() => prefs.setThemeMode(v))
 
@@ -264,34 +160,7 @@ export function SettingsPage() {
         />
       </Section>
 
-      <Section title="键位与手柄" icon={<IconGamepad size={15} />}>
-        <div className="px-4 py-3">
-          <p className="mb-3 text-[12px] text-[var(--ink-3)]">
-            点击右侧按键后按下你想绑定的键。同一功能可绑定多个键（如方向键 + WASD）。
-          </p>
-          <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-            {NES_BUTTONS.map(({ button }) => (
-              <KeyBindRow
-                key={button}
-                button={button}
-                codes={codesByButton[button] ?? []}
-                onCapture={(code) => prefs.setKey(code, button)}
-                onReset={() => {
-                  // 清掉该键位所有现有绑定，再恢复默认里属于它的键
-                  const next = { ...prefs.keymap }
-                  for (const [c, b] of Object.entries(next)) if (b === button) delete next[c]
-                  prefs.patch({ keymap: next })
-                }}
-              />
-            ))}
-          </div>
-        </div>
-        <div className="px-4 py-3">
-          <p className="text-[12px] leading-snug text-[var(--ink-4)]">
-            手柄遵循标准布局：A/B 对应 NES 的 B/A，十字键与左摇杆均为方向，8/9 为 Select/Start。插上手柄即可用，无需设置。
-          </p>
-        </div>
-      </Section>
+      <KeyBindingsEditor />
 
       <Section title="移动端" icon={<IconSparkle size={15} />}>
         <div className="flex items-center justify-between px-4 py-3">

@@ -11,7 +11,7 @@ dev-dist/
 # ---- ROM 文件 ----
 # 商业 ROM 不入库（版权原因）。
 # clone 后请自备 .nes 文件，放到仓库同级的 ../roms/ 目录，
-# 然后执行 `npm run prepare:data` 自动同步、扫描并生成元数据。
+# 然后执行 `pnpm run prepare:data` 自动同步、扫描并生成元数据。
 public/roms/
 
 # ---- 自动生成的封面缓存 ----
